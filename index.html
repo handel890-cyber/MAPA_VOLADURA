@@ -2,146 +2,104 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>COORDENADAS VOLADURA</title>
+    <title>Coordenas Voladura</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     
     <style>
         body { font-family: 'Segoe UI', Roboto, sans-serif; display: flex; height: 100vh; margin: 0; background: #1e1e1e; color: #eee; overflow: hidden; }
         
-        /* --- PANEL LATERAL MÁS GRANDE --- */
         #sidebar { 
-            width: 400px; /* Más ancho */
-            background: #2c3e50; 
-            padding: 25px; 
-            display: flex; flex-direction: column; 
-            box-shadow: 4px 0 20px rgba(0,0,0,0.6); 
-            z-index: 100; 
-            overflow-y: auto; flex-shrink: 0;
+            width: 420px; background: #2c3e50; padding: 25px; display: flex; flex-direction: column; 
+            box-shadow: 4px 0 20px rgba(0,0,0,0.6); z-index: 100; overflow-y: auto; flex-shrink: 0;
             border-right: 1px solid #444;
         }
         
-        h2 { margin-top: 0; color: #f39c12; font-size: 1.4em; border-bottom: 2px solid #555; padding-bottom: 15px; letter-spacing: 1px; }
+        h2 { margin-top: 0; color: #f39c12; font-size: 1.4em; border-bottom: 2px solid #555; padding-bottom: 15px; }
         h3 { margin: 20px 0 10px 0; font-size: 1.1em; color: #bdc3c7; text-transform: uppercase; font-weight: 600; }
         
-        /* INPUTS GRANDES Y CÓMODOS */
         .input-group { background: rgba(0,0,0,0.25); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #444; }
         .input-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .input-row:last-child { margin-bottom: 0; }
-        
         .input-row label { font-size: 1em; color: #ddd; font-weight: 500; }
         .input-row input { 
-            width: 140px; 
-            padding: 10px; 
-            font-size: 1.1em; /* Letra grande */
-            background: #ecf0f1; 
-            border: 2px solid #95a5a6; 
-            border-radius: 6px; 
-            color: #2c3e50; 
-            font-weight: bold; 
-            text-align: right;
+            width: 140px; padding: 8px; font-size: 1em; background: #ecf0f1; 
+            border: 2px solid #95a5a6; border-radius: 6px; color: #2c3e50; font-weight: bold; text-align: right;
         }
         .input-row input:focus { border-color: #f39c12; outline: none; background: #fff; }
 
-        /* INPUT ARCHIVO */
-        #fileInput {
-            padding: 15px; background: #34495e; border-radius: 8px; border: 2px dashed #7f8c8d; width: 100%; box-sizing: border-box; cursor: pointer; transition: 0.3s;
-        }
-        #fileInput:hover { border-color: #f39c12; background: #3e5871; }
-
-        /* BOTONES GRANDES */
-        .btn-action { 
-            width: 100%; padding: 15px; margin-top: 8px; 
-            border: none; cursor: pointer; font-weight: bold; font-size: 1em;
-            border-radius: 6px; text-align: left; padding-left: 20px; 
-            position: relative; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-        }
-        .btn-action:hover { transform: translateY(-2px); filter: brightness(1.1); }
-        .btn-action:active { transform: translateY(0); }
+        #fileInput { padding: 15px; background: #34495e; border-radius: 8px; border: 2px dashed #7f8c8d; width: 100%; box-sizing: border-box; cursor: pointer; color: white; }
         
-        .btn-action.waiting { animation: parpadeo 1s infinite; border-left: 8px solid #f1c40f; background: #555; }
-        .btn-action.done { border-left: 8px solid #27ae60; background: #34495e; color: #aaa; }
+        .btn-action { 
+            width: 100%; padding: 15px; margin-top: 8px; border: none; cursor: pointer; font-weight: bold; font-size: 1em;
+            border-radius: 6px; text-align: left; padding-left: 20px; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .btn-action:hover { filter: brightness(1.1); }
+        .btn-action:active { transform: translateY(2px); }
+        
+        .waiting { animation: parpadeo 1s infinite; border-left: 8px solid #f1c40f; background: #555; }
+        .done { border-left: 8px solid #27ae60; background: #34495e; color: #aaa; }
         
         #btn-norte { background: #c0392b; color: white; }
         #btn-este { background: #2980b9; color: white; }
         #btn-dibujar { background: #e67e22; color: white; margin-top: 25px; }
         
+        #btn-add-vol { background: #8e44ad; color: white; margin-top: 5px; text-align: center; padding-left: 0; display: none; }
+
         .btn-calc { 
-            margin-top: 25px; padding: 18px; 
-            background: linear-gradient(135deg, #27ae60, #2ecc71); 
-            color: white; border: none; font-weight: 800; font-size: 1.2em; 
-            cursor: pointer; border-radius: 8px; width: 100%; 
-            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4); text-transform: uppercase;
+            margin-top: 20px; padding: 18px; background: linear-gradient(135deg, #27ae60, #2ecc71); 
+            color: white; border: none; font-weight: 800; font-size: 1.2em; cursor: pointer; border-radius: 8px; width: 100%; 
         }
         
-        #output-box { 
-            background: #fff; color: #2c3e50; padding: 15px; margin-top: 20px; 
-            font-family: 'Consolas', monospace; font-size: 1em; border-radius: 6px; 
-            display: none; border-left: 6px solid #f39c12; 
-        }
+        #output-box { background: #fff; padding: 10px; margin-top: 20px; border-radius: 6px; display: none; border-left: 6px solid #f39c12; }
+        .res-table { width: 100%; border-collapse: collapse; font-size: 0.85em; color: #2c3e50; }
+        .res-table th { background: #e67e22; color: white; padding: 8px 5px; text-align: center; font-size: 0.9em;}
+        .res-table td { padding: 6px 4px; border-bottom: 1px solid #ddd; text-align: center; vertical-align: middle; }
+        .res-table input[type="text"] { width: 90px; text-align: center; font-weight: bold; border: 1px solid #ccc; border-radius: 3px; padding: 4px; }
+        .res-table input[type="number"] { width: 60px; text-align: center; font-weight: bold; border: 2px solid #3498db; border-radius: 3px; padding: 4px; color: #2980b9; }
 
-        /* FIRMA DEL DESARROLLADOR */
-        .dev-signature {
-            margin-top: auto; /* Empuja al fondo */
-            padding-top: 20px;
-            text-align: center;
-            font-size: 0.85em;
-            color: #7f8c8d;
-            border-top: 1px solid #444;
-            font-weight: 500;
-        }
-        .dev-signature b { color: #f39c12; }
+        .footer-dev { margin-top: auto; padding-top: 20px; text-align: center; font-size: 0.8em; color: #7f8c8d; border-top: 1px solid #444; }
+        .footer-dev b { color: #bdc3c7; }
 
-        /* --- ZONA DE DIBUJO --- */
         #main { flex-grow: 1; position: relative; overflow: hidden; background: #444; cursor: crosshair; }
-        #canvas-wrapper { position: absolute; top: 0; left: 0; transform-origin: 0 0; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        #canvas-wrapper { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
         img { display: block; pointer-events: none; }
         canvas { position: absolute; top: 0; left: 0; }
-        #hud { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 30px; font-size: 0.9em; pointer-events: none; border: 1px solid rgba(255,255,255,0.2); }
-
+        #hud { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 30px; font-size: 0.9em; pointer-events: none;}
         @keyframes parpadeo { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
         .badge { float: right; background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 12px; font-size: 0.85em; }
+        .hint-text { font-size: 0.85em; color: #2ecc71; text-align: center; display: block; margin-top: 10px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px;}
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <h2>COORDENADAS VOLADURA</h2>
+    <h2>Coordenadas de Voladura</h2>
 
-    <h3>1. Cargar Plano (PDF o IMG)</h3>
+    <h3>1. Cargar Plano</h3>
     <input type="file" id="fileInput" accept="image/*,application/pdf">
-    <div style="font-size:0.8em; color:#95a5a6; margin-top:8px; line-height:1.4;">
-        ✅ Soporta: <b>PDF</b>, JPG, PNG.<br>
-        🖱️ <b>Rueda:</b> Zoom | <b>Espacio:</b> Mover Mapa
-    </div>
 
-    <h3>2. Configuración de Grilla</h3>
+    <h3>2. Calibrar Grilla</h3>
     <div class="input-group">
         <div class="input-row"><label>Norte Base:</label><input type="number" id="valNorte" value=""></div>
         <div class="input-row"><label>Este Base:</label><input type="number" id="valEste" value=""></div>
         <div class="input-row"><label>Distancia (m):</label><input type="number" id="valDist" value=""></div>
     </div>
+    
+    <button id="btn-norte" class="btn-action" onclick="activarModo('norte')">1. Definir Norte <span class="badge" id="badge-norte">0/2</span></button>
+    <button id="btn-este" class="btn-action" onclick="activarModo('este')">2. Definir Este <span class="badge" id="badge-este">0/2</span></button>
 
-    <h3>3. Calibración</h3>
-    <button id="btn-norte" class="btn-action" onclick="activarModo('norte')">
-        1. Definir Norte <span class="badge" id="badge-norte">0/2</span>
-    </button>
-    <button id="btn-este" class="btn-action" onclick="activarModo('este')">
-        2. Definir Este <span class="badge" id="badge-este">0/2</span>
-    </button>
-
-    <button id="btn-dibujar" class="btn-action" onclick="activarModo('dibujo')">
-        3. Dibujar Voladura <span class="badge" id="badge-dibujo">0 pts</span>
-    </button>
+    <h3>3. Voladuras</h3>
+    <button id="btn-dibujar" class="btn-action" onclick="activarModo('dibujo')">3. Dibujar Zona <span class="badge" id="badge-dibujo">0 pts</span></button>
+    
+    <span class="hint-text">💡 <b>ENTER:</b> Guardar Voladura<br>🖱️ <b>CLIC DERECHO:</b> Deshacer Punto</span>
 
     <button class="btn-calc" onclick="calcularTodo()">✅ CALCULAR DATOS</button>
 
     <div id="output-box"></div>
     
     <button onclick="location.reload()" style="margin-top:20px; background:transparent; border:1px solid #555; color:#777; padding:10px; cursor:pointer; width:100%; border-radius:6px;">🔄 Reiniciar Todo</button>
-
-    <div class="dev-signature">
-        Dev: <b>Johann Handel CP</b> 
-    </div>
+    
+    <div class="footer-dev">Desarrollado por: <b>Johann Handel CP</b></div>
 </div>
 
 <div id="main">
@@ -153,12 +111,14 @@
 </div>
 
 <script>
-    // --- CONFIGURACIÓN PDF.JS ---
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    // --- VARIABLES ---
     let modo = null; 
-    let clicsNorte = []; let clicsEste = []; let poligono = [];
+    let clicsNorte = []; let clicsEste = []; 
+    let poligonoActual = []; 
+    let poligonosGuardados = []; 
+    let resultadosGlobales = [];
+
     let transform = { x: 0, y: 0, scale: 1 };
     let isPanning = false, startPanX = 0, startPanY = 0;
 
@@ -169,45 +129,27 @@
     let mainContainer = document.getElementById('main');
     let hud = document.getElementById('hud');
 
-    // --- 1. CARGA INTELIGENTE (PDF o IMAGEN) ---
     document.getElementById('fileInput').addEventListener('change', async function(e){
         let file = e.target.files[0];
         if(!file) return;
-
         if(file.type === 'application/pdf') {
-            // Lógica de PDF
             let fileReader = new FileReader();
             fileReader.onload = async function() {
                 let typedarray = new Uint8Array(this.result);
-                try {
-                    let pdf = await pdfjsLib.getDocument(typedarray).promise;
-                    let page = await pdf.getPage(1); // Cargar página 1
-                    
-                    // Renderizar PDF a alta resolución (Scale 2.0 o 3.0 para zoom nítido)
-                    let viewport = page.getViewport({scale: 3.0}); 
-                    let tempCanvas = document.createElement('canvas');
-                    let tempCtx = tempCanvas.getContext('2d');
-                    tempCanvas.height = viewport.height;
-                    tempCanvas.width = viewport.width;
-
-                    await page.render({canvasContext: tempCtx, viewport: viewport}).promise;
-                    
-                    // Convertir a imagen para usar la lógica existente
-                    img.src = tempCanvas.toDataURL();
-                    configurarEntorno(viewport.width, viewport.height);
-                    
-                } catch(error) {
-                    alert("Error leyendo PDF: " + error.message);
-                }
+                let pdf = await pdfjsLib.getDocument(typedarray).promise;
+                let page = await pdf.getPage(1);
+                let viewport = page.getViewport({scale: 3.0}); 
+                let tempCanvas = document.createElement('canvas');
+                let tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.height = viewport.height; tempCanvas.width = viewport.width;
+                await page.render({canvasContext: tempCtx, viewport: viewport}).promise;
+                img.src = tempCanvas.toDataURL();
+                configurarEntorno(viewport.width, viewport.height);
             };
             fileReader.readAsArrayBuffer(file);
         } else {
-            // Lógica de Imagen normal
             let reader = new FileReader();
-            reader.onload = function(event){
-                img.src = event.target.result;
-                img.onload = function(){ configurarEntorno(img.width, img.height); }
-            }
+            reader.onload = function(event){ img.src = event.target.result; img.onload = () => configurarEntorno(img.width, img.height); }
             reader.readAsDataURL(file);
         }
     });
@@ -215,8 +157,6 @@
     function configurarEntorno(w, h) {
         canvas.width = w; canvas.height = h;
         wrapper.style.width = w + "px"; wrapper.style.height = h + "px";
-        
-        // Centrar
         let scaleStart = Math.min((mainContainer.clientWidth - 50)/w, (mainContainer.clientHeight - 50)/h);
         transform.scale = scaleStart;
         transform.x = (mainContainer.clientWidth - w * scaleStart) / 2;
@@ -224,21 +164,15 @@
         actualizarTransform();
     }
 
-    // --- 2. ZOOM Y PAN (Igual que V4) ---
     mainContainer.addEventListener('wheel', function(e) {
         e.preventDefault();
         const delta = -Math.sign(e.deltaY);
-        const step = 0.15;
-        let newScale = transform.scale + (delta * step * transform.scale);
+        let newScale = transform.scale + (delta * 0.15 * transform.scale);
         if (newScale < 0.05) newScale = 0.05;
-        
         let mouseX = e.clientX - mainContainer.getBoundingClientRect().left;
         let mouseY = e.clientY - mainContainer.getBoundingClientRect().top;
-        let imageX = (mouseX - transform.x) / transform.scale;
-        let imageY = (mouseY - transform.y) / transform.scale;
-
-        transform.x = mouseX - (imageX * newScale);
-        transform.y = mouseY - (imageY * newScale);
+        transform.x = mouseX - ((mouseX - transform.x) / transform.scale * newScale);
+        transform.y = mouseY - ((mouseY - transform.y) / transform.scale * newScale);
         transform.scale = newScale;
         actualizarTransform();
     });
@@ -252,13 +186,21 @@
     });
 
     window.addEventListener('mousemove', function(e) {
-        if (isPanning) {
-            transform.x = e.clientX - startPanX; transform.y = e.clientY - startPanY;
-            actualizarTransform();
-        }
+        if (isPanning) { transform.x = e.clientX - startPanX; transform.y = e.clientY - startPanY; actualizarTransform(); }
     });
     window.addEventListener('mouseup', () => { isPanning = false; mainContainer.style.cursor = 'crosshair'; });
-    window.addEventListener('keydown', (e) => { if(e.code === 'Space') mainContainer.style.cursor = 'grab'; });
+    
+    // --- TECLADO (Atajo Enter y Espacio) ---
+    window.addEventListener('keydown', (e) => { 
+        if(e.code === 'Space') mainContainer.style.cursor = 'grab'; 
+        
+        // Atajo ENTER para guardar polígono
+        if(e.code === 'Enter') {
+            if (modo === 'dibujo' && poligonoActual.length > 2) {
+                guardarPoligono();
+            }
+        }
+    });
     window.addEventListener('keyup', (e) => { if(e.code === 'Space') mainContainer.style.cursor = 'crosshair'; });
 
     function actualizarTransform() {
@@ -266,28 +208,52 @@
         hud.innerText = "Zoom: " + Math.round(transform.scale * 100) + "%";
     }
 
-    // --- 3. LOGICA DE CLICS ---
+    // --- LÓGICA DE RATÓN MEJORADA ---
+    
+    // Clic Izquierdo (Dibujar puntos)
     wrapper.addEventListener('mousedown', function(e){
-        if (e.button === 1 || e.getModifierState("Space") || !modo) return;
+        if (e.button !== 0 || e.getModifierState("Space") || !modo) return; 
+        
         let rect = img.getBoundingClientRect();
-        let scaleX = img.width / rect.width;
-        let scaleY = img.height / rect.height;
-        let x = (e.clientX - rect.left) * scaleX;
-        let y = (e.clientY - rect.top) * scaleY;
-        if(x < 0 || y < 0 || x > img.width || y > img.height) return;
+        let x = (e.clientX - rect.left) * (img.width / rect.width);
+        let y = (e.clientY - rect.top) * (img.height / rect.height);
 
         if(modo === 'norte') { clicsNorte.push(y); if(clicsNorte.length === 2) modo = null; }
         else if(modo === 'este') { clicsEste.push(x); if(clicsEste.length === 2) modo = null; }
-        else if(modo === 'dibujo') { poligono.push({x:x, y:y}); }
+        else if(modo === 'dibujo') { poligonoActual.push({x:x, y:y}); }
         actualizarUI(); render();
+    });
+
+    // Clic Derecho (Deshacer último punto)
+    wrapper.addEventListener('contextmenu', function(e){
+        e.preventDefault(); // Evita que salga el menú contextual del navegador
+        
+        if (modo === 'dibujo' && poligonoActual.length > 0) {
+            poligonoActual.pop(); // Borra el último punto del array
+            actualizarUI(); 
+            render();
+        }
     });
 
     function activarModo(n) {
         modo = n;
         if(modo === 'norte') clicsNorte = [];
         if(modo === 'este') clicsEste = [];
-        if(modo === 'dibujo') poligono = [];
+        if(modo === 'dibujo') {
+            if(poligonoActual.length > 2) guardarPoligono(); 
+            poligonoActual = []; 
+        }
         actualizarUI(); render();
+    }
+
+    function guardarPoligono() {
+        if(poligonoActual.length > 2) {
+            poligonosGuardados.push([...poligonoActual]); 
+            poligonoActual = []; 
+            actualizarUI(); render();
+        } else {
+            alert("Dibuja al menos 3 puntos antes de guardar.");
+        }
     }
 
     function actualizarUI() {
@@ -302,67 +268,165 @@
         if(modo === 'este') btnE.classList.add('waiting'); else if(clicsEste.length === 2) btnE.classList.add('done');
 
         let btnD = document.getElementById('btn-dibujar');
-        document.getElementById('badge-dibujo').innerText = poligono.length + " pts";
-        if(modo === 'dibujo') btnD.classList.add('waiting'); else if(poligono.length > 2) btnD.classList.add('done');
+        document.getElementById('badge-dibujo').innerText = poligonoActual.length + " pts";
+        if(modo === 'dibujo') {
+            btnD.classList.add('waiting');
+        } else {
+            if(poligonosGuardados.length > 0 || poligonoActual.length > 2) btnD.classList.add('done');
+        }
     }
 
     function render() {
         ctx.clearRect(0,0, canvas.width, canvas.height);
-        // Norte
+        
         ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 4;
         clicsNorte.forEach(y => { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); });
-        // Este
         ctx.strokeStyle = '#3498db'; ctx.lineWidth = 4;
         clicsEste.forEach(x => { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); });
-        // Poligono
-        if(poligono.length > 0) {
-            ctx.beginPath(); ctx.moveTo(poligono[0].x, poligono[0].y);
-            for(let i=1; i<poligono.length; i++) ctx.lineTo(poligono[i].x, poligono[i].y);
-            if(poligono.length>2) { ctx.closePath(); ctx.fillStyle = 'rgba(230, 126, 34, 0.4)'; ctx.fill(); }
-            ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 4; ctx.stroke();
-            poligono.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fillStyle='white'; ctx.fill(); });
+        
+        // Dibujar polígonos guardados con el texto en el centro
+        poligonosGuardados.forEach((poli, i) => { 
+            // Toma el nombre de la tabla si existe, sino usa un valor por defecto
+            let nombreActual = resultadosGlobales[i] ? resultadosGlobales[i].nombre : `Voladura ${i+1}`;
+            dibujarPoligono(poli, '#8e44ad', nombreActual); 
+        });
+
+        // Dibujar el polígono que está en proceso
+        if(poligonoActual.length > 0) {
+            dibujarPoligono(poligonoActual, '#e67e22', null);
+            poligonoActual.forEach(p => { 
+                ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); 
+                ctx.fillStyle = 'white'; ctx.fill(); 
+                ctx.lineWidth = 1; ctx.strokeStyle = '#000'; ctx.stroke();
+            });
+        }
+
+        // DIBUJAR CÍRCULOS DE RADIO FINAL
+        resultadosGlobales.forEach((res) => {
+            ctx.beginPath(); 
+            ctx.arc(res.cx, res.cy, res.radio / res.escala, 0, Math.PI*2);
+            ctx.strokeStyle = '#ff00ff'; ctx.lineWidth = 4; ctx.setLineDash([20,10]); ctx.stroke();
+            ctx.setLineDash([]); 
+        });
+    }
+
+    function dibujarPoligono(puntos, color, textoCentro) {
+        if(puntos.length === 0) return;
+        ctx.beginPath(); ctx.moveTo(puntos[0].x, puntos[0].y);
+        for(let i=1; i<puntos.length; i++) ctx.lineTo(puntos[i].x, puntos[i].y);
+        if(puntos.length>2) { 
+            ctx.closePath(); 
+            ctx.fillStyle = color === '#e67e22' ? 'rgba(230, 126, 34, 0.4)' : 'rgba(142, 68, 173, 0.4)'; 
+            ctx.fill(); 
+        }
+        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+
+        // DIBUJAR TEXTO EN EL CENTRO EXACTO DEL POLÍGONO
+        if(textoCentro && puntos.length > 2) {
+            let sumX = 0, sumY = 0;
+            puntos.forEach(p => { sumX += p.x; sumY += p.y; });
+            let centroX = sumX / puntos.length;
+            let centroY = sumY / puntos.length;
+
+            ctx.fillStyle = 'white'; 
+            ctx.font = "bold 26px Arial";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.shadowColor = "black";
+            ctx.shadowBlur = 6;
+            ctx.fillText(textoCentro, centroX, centroY);
+            // Reset de estilos de texto
+            ctx.shadowBlur = 0;
+            ctx.textAlign = "left";
+            ctx.textBaseline = "alphabetic";
         }
     }
 
     function calcularTodo() {
-        if(clicsNorte.length < 2 || clicsEste.length < 2 || poligono.length < 3) return alert("Faltan datos de calibración o dibujo.");
+        if(poligonoActual.length > 2) { guardarPoligono(); }
+        if(clicsNorte.length < 2 || clicsEste.length < 2 || poligonosGuardados.length === 0) {
+            return alert("Faltan datos de calibración o no has dibujado ninguna voladura.");
+        }
 
         let norteBase = parseFloat(document.getElementById('valNorte').value);
         let esteBase = parseFloat(document.getElementById('valEste').value);
         let distanciaReal = parseFloat(document.getElementById('valDist').value);
 
-        let distPx_Y = Math.abs(clicsNorte[1] - clicsNorte[0]);
-        let distPx_X = Math.abs(clicsEste[1] - clicsEste[0]);
-        let m_px_Y = distanciaReal / distPx_Y;
-        let m_px_X = distanciaReal / distPx_X;
+        let m_px_Y = distanciaReal / Math.abs(clicsNorte[1] - clicsNorte[0]);
+        let m_px_X = distanciaReal / Math.abs(clicsEste[1] - clicsEste[0]);
         let m_px_Promedio = (m_px_Y + m_px_X) / 2;
 
-        let sumX=0, sumY=0;
-        poligono.forEach(p => { sumX+=p.x; sumY+=p.y; });
-        let cx_px = sumX / poligono.length;
-        let cy_px = sumY / poligono.length;
+        resultadosGlobales = [];
 
-        // Cálculos de dirección
-        let diffY = cy_px - clicsNorte[0]; // + si centro está abajo (menor norte)
-        let diffX = cx_px - clicsEste[0];  // + si centro está derecha (mayor este)
-        
-        let norteFinal = norteBase - (diffY * m_px_Y); // Resta porque Y crece abajo y N arriba
-        let esteFinal = esteBase + (diffX * m_px_X);   // Suma porque X crece derecha y E derecha
+        poligonosGuardados.forEach((poli, index) => {
+            let sumX=0, sumY=0;
+            poli.forEach(p => { sumX+=p.x; sumY+=p.y; });
+            let cx_px = sumX / poli.length;
+            let cy_px = sumY / poli.length;
 
-        let maxRadio_px = 0;
-        poligono.forEach(p => {
-            let d = Math.hypot(p.x - cx_px, p.y - cy_px);
-            if(d > maxRadio_px) maxRadio_px = d;
+            let norteFinal = norteBase - ((cy_px - clicsNorte[0]) * m_px_Y); 
+            let esteFinal = esteBase + ((cx_px - clicsEste[0]) * m_px_X);   
+
+            let maxRadio_px = 0;
+            poli.forEach(p => {
+                let d = Math.hypot(p.x - cx_px, p.y - cy_px);
+                if(d > maxRadio_px) maxRadio_px = d;
+            });
+            let radioCalculado = Math.ceil((maxRadio_px * m_px_Promedio) + 500);
+
+            resultadosGlobales.push({
+                nombre: `Voladura ${index + 1}`,
+                norte: norteFinal.toFixed(0),
+                este: esteFinal.toFixed(0),
+                radio: radioCalculado,
+                cx: cx_px,
+                cy: cy_px,
+                escala: m_px_Promedio
+            });
         });
-        let radioFinal = Math.ceil((maxRadio_px * m_px_Promedio) + 500);
 
+        dibujarTabla();
+        render();
+    }
+
+    function dibujarTabla() {
         let box = document.getElementById('output-box');
         box.style.display = 'block';
-        box.innerHTML = `<strong>📋 COPIAR AL EXCEL:</strong><br><br>Norte: &nbsp;${norteFinal.toFixed(0)}<br>Este: &nbsp;&nbsp;${esteFinal.toFixed(0)}<br>Radio: &nbsp;${radioFinal}`;
+        
+        let html = `
+        <table class="res-table">
+            <tr>
+                <th>Nombre</th>
+                <th>Norte</th>
+                <th>Este</th>
+                <th>Radio (m)</th>
+            </tr>`;
 
-        // Dibujo Final
-        ctx.beginPath(); ctx.arc(cx_px, cy_px, radioFinal / m_px_Promedio, 0, Math.PI*2);
-        ctx.strokeStyle = '#ff00ff'; ctx.lineWidth = 6; ctx.setLineDash([20,10]); ctx.stroke();
+        resultadosGlobales.forEach((res, index) => {
+            html += `
+            <tr>
+                <td><input type="text" value="${res.nombre}" onchange="cambiarNombre(${index}, this.value)"></td>
+                <td>${res.norte}</td>
+                <td>${res.este}</td>
+                <td><input type="number" value="${res.radio}" oninput="cambiarRadio(${index}, this.value)"></td>
+            </tr>`;
+        });
+        
+        html += `</table>`;
+        box.innerHTML = html;
+    }
+
+    function cambiarRadio(index, nuevoValor) {
+        let val = parseFloat(nuevoValor);
+        if(!isNaN(val)) {
+            resultadosGlobales[index].radio = val;
+            render(); 
+        }
+    }
+
+    function cambiarNombre(index, nuevoTexto) {
+        resultadosGlobales[index].nombre = nuevoTexto;
+        render(); 
     }
 </script>
 
