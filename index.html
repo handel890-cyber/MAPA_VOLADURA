@@ -2,132 +2,770 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Coordenas Voladura</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SISTEMA GESTIÓN TOROMOCHO INTEGRADO</title>
     
-    <style>
-        body { font-family: 'Segoe UI', Roboto, sans-serif; display: flex; height: 100vh; margin: 0; background: #1e1e1e; color: #eee; overflow: hidden; }
-        
-        #sidebar { 
-            width: 420px; background: #2c3e50; padding: 25px; display: flex; flex-direction: column; 
-            box-shadow: 4px 0 20px rgba(0,0,0,0.6); z-index: 100; overflow-y: auto; flex-shrink: 0;
-            border-right: 1px solid #444;
-        }
-        
-        h2 { margin-top: 0; color: #f39c12; font-size: 1.4em; border-bottom: 2px solid #555; padding-bottom: 15px; }
-        h3 { margin: 20px 0 10px 0; font-size: 1.1em; color: #bdc3c7; text-transform: uppercase; font-weight: 600; }
-        
-        .input-group { background: rgba(0,0,0,0.25); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #444; }
-        .input-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .input-row:last-child { margin-bottom: 0; }
-        .input-row label { font-size: 1em; color: #ddd; font-weight: 500; }
-        .input-row input { 
-            width: 140px; padding: 8px; font-size: 1em; background: #ecf0f1; 
-            border: 2px solid #95a5a6; border-radius: 6px; color: #2c3e50; font-weight: bold; text-align: right;
-        }
-        .input-row input:focus { border-color: #f39c12; outline: none; background: #fff; }
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
-        #fileInput { padding: 15px; background: #34495e; border-radius: 8px; border: 2px dashed #7f8c8d; width: 100%; box-sizing: border-box; cursor: pointer; color: white; }
+    <style>
+        /* --- ESTILOS GENERALES --- */
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Segoe UI', Roboto, sans-serif; background: #1e1e1e; color: #eee; }
         
-        .btn-action { 
-            width: 100%; padding: 15px; margin-top: 8px; border: none; cursor: pointer; font-weight: bold; font-size: 1em;
-            border-radius: 6px; text-align: left; padding-left: 20px; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        /* Contenedores Principales a pantalla completa */
+        .app-view {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            display: none; height: 100%; width: 100%;
         }
+        .app-view.active { display: block; }
+
+        /* --- SWITCHER FLOTANTE (DOCK MINIMALISTA) --- */
+        #app-switcher {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(33, 47, 61, 0.85); backdrop-filter: blur(5px);
+            padding: 8px 15px; border-radius: 30px; display: flex; gap: 15px;
+            z-index: 10000; box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .switch-btn {
+            background: transparent; color: white; border: none; width: 45px; height: 45px;
+            border-radius: 50%; font-size: 1.5em; cursor: pointer; transition: 0.3s;
+            display: flex; justify-content: center; align-items: center; padding: 0;
+        }
+        .switch-btn:hover { background: rgba(255,255,255,0.1); transform: scale(1.1); }
+        .switch-btn.active { background: #e67e22; box-shadow: 0 0 12px #e67e22; }
+
+        /* =========================================================
+           ESTILOS: APP MAPA (LEAFLET)
+           ========================================================= */
+        #map { height: 100%; width: 100%; z-index: 1; }
+        .menu-toggle { position: absolute; top: 10px; left: 10px; z-index: 1100; background: #2c3e50; color: white; border: none; border-radius: 4px; width: 40px; height: 40px; font-size: 1.5em; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        #panel { 
+            position: absolute; top: 60px; left: 10px; width: 280px; 
+            background: rgba(33, 47, 61, 0.95); color: white; padding: 10px; 
+            border-radius: 8px; z-index: 1000; box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+            max-height: 80vh; overflow-y: auto; transition: transform 0.3s ease-in-out;
+            transform: translateX(0);
+        }
+        #panel.escondido { transform: translateX(-360%); }
+        h4 { margin: 10px 0 5px 0; font-size: 0.8em; color: #2ecc71; text-transform: uppercase; text-align: center; border-bottom: 1px solid #555; padding-bottom: 5px; }
+        .map-btn { width: 100%; padding: 12px; margin: 3px 0; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; font-size: 0.75em; transition: 0.2s; }
+        .map-btn:active { transform: scale(0.98); }
+        .btn-gps { background: #2980b9; color: white; }
+        .btn-sync { background: #8e44ad; color: white; } 
+        .btn-report { background: #d35400; color: white; border: 1px solid #e67e22; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .btn-alert { background: #c0392b; color: white; border: 2px solid #e74c3c; margin-bottom: 15px; box-shadow: 0 0 15px rgba(231, 76, 60, 0.6); animation: parpadeo-boton 1s infinite alternate; display: none; }
+        @keyframes parpadeo-boton { from { opacity: 1; transform: scale(1); } to { opacity: 0.9; transform: scale(0.98); } }
+        .tab-container { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .tab-btn { width: 48%; background: #34495e; color: #bdc3c7; border: 1px solid #555; padding: 8px; cursor:pointer;}
+        .tab-btn.active { background: #16a085; color: white; border-color: #16a085; }
+        .list-item { background: rgba(255,255,255,0.05); padding: 8px; margin-bottom: 5px; border-radius: 4px; font-size: 0.75em; border-left: 4px solid grey; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .list-item:hover { background: rgba(255,255,255,0.1); }
+        .genset-item { border-left-color: #9b59b6; }
+        .genset-marker { background: #8e44ad; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px black; display: flex; align-items: center; justify-content: center; }
+        .genset-marker svg { width: 18px; height: 18px; fill: white; }
+        .leaflet-popup-content { font-size: 1.1em; line-height: 1.4; color: black; }
+        #radio-silence-alert { position: absolute; bottom: 80px; left: 20px; right: 20px; background: rgba(231, 76, 60, 0.95); color: white; padding: 15px; border-radius: 8px; text-align: center; font-weight: 900; font-size: 1.2em; z-index: 2000; border: 4px solid white; display: none; box-shadow: 0 0 30px rgba(255, 0, 0, 0.8); text-transform: uppercase; animation: parpadeo-fuerte 0.8s infinite alternate; }
+        @keyframes parpadeo-fuerte { from { opacity: 1; transform: scale(1); } to { opacity: 0.9; transform: scale(1.02); } }
+        #reloj-sistema { font-family: monospace; color: #f1c40f; text-align: center; font-size: 1.2em; margin-bottom: 10px; border: 1px solid #555; padding: 5px; background: rgba(0,0,0,0.3); }
+        .storm-alert, .proximity-alert { padding: 10px; margin-bottom: 10px; text-align: center; font-size: 0.8em; display: none; font-weight: bold; border-radius: 5px; }
+        .storm-alert { background: rgba(52, 152, 219, 0.2); border: 2px solid #3498db; color: #f1c40f; }
+        .proximity-alert { background: rgba(243, 156, 18, 0.2); border: 2px solid #f39c12; color: #e67e22; }
+        .proximity-critical { background: rgba(231, 76, 60, 0.3); border: 2px solid #c0392b; color: #ff6b6b; }
+        .footer-dev { margin-top: 20px; padding-top: 10px; border-top: 1px solid #555; text-align: center; font-size: 0.6em; color: #95a5a6; }
+        .car-icon { width: 30px; height: 30px; filter: drop-shadow(0px 0px 3px black); }
+        #tabla-dinamica { width: 100%; border-collapse: collapse; font-size: 0.85em; color: #333; }
+        #tabla-dinamica th { background: #2c3e50; color: white; padding: 10px; text-align: left; position: sticky; top: 0; }
+        #tabla-dinamica td { padding: 8px; border-bottom: 1px solid #ddd; }
+        #tabla-dinamica tr:nth-child(even) { background-color: #f2f2f2; }
+
+        /* =========================================================
+           ESTILOS: APP CALCULADORA
+           ========================================================= */
+        #calc-sidebar { 
+            position: absolute; top: 60px; left: 10px; width: 360px; background: rgba(44, 62, 80, 0.95); 
+            padding: 20px; box-shadow: 4px 0 20px rgba(0,0,0,0.6); z-index: 1000; overflow-y: auto; 
+            border-radius: 8px; max-height: 80vh; transition: transform 0.3s ease-in-out;
+            transform: translateX(0);
+        }
+        #calc-sidebar.escondido { transform: translateX(-360%); }
+        
+        #calc-sidebar h2 { margin-top: 0; color: #f39c12; font-size: 1.2em; border-bottom: 2px solid #555; padding-bottom: 10px; }
+        #calc-sidebar h3 { margin: 15px 0 8px 0; font-size: 0.9em; color: #bdc3c7; text-transform: uppercase; font-weight: 600; }
+        .input-group { background: rgba(0,0,0,0.25); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #444; }
+        .input-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .input-row:last-child { margin-bottom: 0; }
+        .input-row label { font-size: 0.9em; color: #ddd; font-weight: 500; }
+        .input-row input { width: 120px; padding: 6px; font-size: 0.9em; background: #ecf0f1; border: 2px solid #95a5a6; border-radius: 6px; color: #2c3e50; font-weight: bold; text-align: right; }
+        .input-row input:focus { border-color: #f39c12; outline: none; background: #fff; }
+        #fileInput { padding: 10px; background: #34495e; border-radius: 8px; border: 2px dashed #7f8c8d; width: 100%; box-sizing: border-box; cursor: pointer; color: white; font-size: 0.8em; }
+        .btn-action { width: 100%; padding: 12px; margin-top: 5px; border: none; cursor: pointer; font-weight: bold; font-size: 0.9em; border-radius: 6px; text-align: left; padding-left: 15px; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
         .btn-action:hover { filter: brightness(1.1); }
         .btn-action:active { transform: translateY(2px); }
-        
         .waiting { animation: parpadeo 1s infinite; border-left: 8px solid #f1c40f; background: #555; }
         .done { border-left: 8px solid #27ae60; background: #34495e; color: #aaa; }
-        
         #btn-norte { background: #c0392b; color: white; }
         #btn-este { background: #2980b9; color: white; }
-        #btn-dibujar { background: #e67e22; color: white; margin-top: 25px; }
+        #btn-dibujar { background: #e67e22; color: white; margin-top: 15px; }
+        .btn-calc { margin-top: 15px; padding: 15px; background: linear-gradient(135deg, #27ae60, #2ecc71); color: white; border: none; font-weight: 800; font-size: 1.1em; cursor: pointer; border-radius: 8px; width: 100%; }
+        #output-box { background: #fff; padding: 10px; margin-top: 15px; border-radius: 6px; display: none; border-left: 6px solid #f39c12; }
+        .res-table { width: 100%; border-collapse: collapse; font-size: 0.8em; color: #2c3e50; }
+        .res-table th { background: #e67e22; color: white; padding: 6px 4px; text-align: center; }
+        .res-table td { padding: 4px 2px; border-bottom: 1px solid #ddd; text-align: center; vertical-align: middle; }
+        .res-table input[type="text"] { width: 80px; text-align: center; font-weight: bold; border: 1px solid #ccc; border-radius: 3px; padding: 3px; }
+        .res-table input[type="number"] { width: 50px; text-align: center; font-weight: bold; border: 2px solid #3498db; border-radius: 3px; padding: 3px; color: #2980b9; }
         
-        #btn-add-vol { background: #8e44ad; color: white; margin-top: 5px; text-align: center; padding-left: 0; display: none; }
-
-        .btn-calc { 
-            margin-top: 20px; padding: 18px; background: linear-gradient(135deg, #27ae60, #2ecc71); 
-            color: white; border: none; font-weight: 800; font-size: 1.2em; cursor: pointer; border-radius: 8px; width: 100%; 
-        }
-        
-        #output-box { background: #fff; padding: 10px; margin-top: 20px; border-radius: 6px; display: none; border-left: 6px solid #f39c12; }
-        .res-table { width: 100%; border-collapse: collapse; font-size: 0.85em; color: #2c3e50; }
-        .res-table th { background: #e67e22; color: white; padding: 8px 5px; text-align: center; font-size: 0.9em;}
-        .res-table td { padding: 6px 4px; border-bottom: 1px solid #ddd; text-align: center; vertical-align: middle; }
-        .res-table input[type="text"] { width: 90px; text-align: center; font-weight: bold; border: 1px solid #ccc; border-radius: 3px; padding: 4px; }
-        .res-table input[type="number"] { width: 60px; text-align: center; font-weight: bold; border: 2px solid #3498db; border-radius: 3px; padding: 4px; color: #2980b9; }
-
-        .footer-dev { margin-top: auto; padding-top: 20px; text-align: center; font-size: 0.8em; color: #7f8c8d; border-top: 1px solid #444; }
-        .footer-dev b { color: #bdc3c7; }
-
-        #main { flex-grow: 1; position: relative; overflow: hidden; background: #444; cursor: crosshair; }
+        #canvas-main { position: absolute; top:0; left:0; width: 100%; height: 100%; overflow: hidden; background: #222; cursor: crosshair; z-index: 1;}
         #canvas-wrapper { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
-        img { display: block; pointer-events: none; }
-        canvas { position: absolute; top: 0; left: 0; }
-        #hud { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 30px; font-size: 0.9em; pointer-events: none;}
+        #canvas-wrapper img { display: block; pointer-events: none; }
+        #drawLayer { position: absolute; top: 0; left: 0; }
+        #hud { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 30px; font-size: 0.9em; pointer-events: none; z-index: 10;}
         @keyframes parpadeo { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
-        .badge { float: right; background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 12px; font-size: 0.85em; }
-        .hint-text { font-size: 0.85em; color: #2ecc71; text-align: center; display: block; margin-top: 10px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px;}
+        .badge { float: right; background: rgba(0,0,0,0.3); padding: 3px 8px; border-radius: 12px; font-size: 0.85em; }
+        .hint-text { font-size: 0.8em; color: #2ecc71; text-align: center; display: block; margin-top: 10px; background: rgba(0,0,0,0.2); padding: 6px; border-radius: 4px;}
     </style>
 </head>
 <body>
 
-<div id="sidebar">
-    <h2>Coordenadas de Voladura</h2>
-
-    <h3>1. Cargar Plano</h3>
-    <input type="file" id="fileInput" accept="image/*,application/pdf">
-
-    <h3>2. Calibrar Grilla</h3>
-    <div class="input-group">
-        <div class="input-row"><label>Norte Base:</label><input type="number" id="valNorte" value=""></div>
-        <div class="input-row"><label>Este Base:</label><input type="number" id="valEste" value=""></div>
-        <div class="input-row"><label>Distancia (m):</label><input type="number" id="valDist" value=""></div>
-    </div>
-    
-    <button id="btn-norte" class="btn-action" onclick="activarModo('norte')">1. Definir Norte <span class="badge" id="badge-norte">0/2</span></button>
-    <button id="btn-este" class="btn-action" onclick="activarModo('este')">2. Definir Este <span class="badge" id="badge-este">0/2</span></button>
-
-    <h3>3. Voladuras</h3>
-    <button id="btn-dibujar" class="btn-action" onclick="activarModo('dibujo')">3. Dibujar Zona <span class="badge" id="badge-dibujo">0 pts</span></button>
-    
-    <span class="hint-text">💡 <b>ENTER:</b> Guardar Voladura<br>🖱️ <b>CLIC DERECHO:</b> Deshacer Punto</span>
-
-    <button class="btn-calc" onclick="calcularTodo()">✅ CALCULAR DATOS</button>
-
-    <div id="output-box"></div>
-    
-    <button onclick="location.reload()" style="margin-top:20px; background:transparent; border:1px solid #555; color:#777; padding:10px; cursor:pointer; width:100%; border-radius:6px;">🔄 Reiniciar Todo</button>
-    
-    <div class="footer-dev">Desarrollado por: <b>Johann Handel CP</b></div>
+<div id="app-switcher">
+    <button class="switch-btn active" title="Mapa Operativo" onclick="switchView('mapa-view', this)">🗺️</button>
+    <button class="switch-btn" title="Extraer Coordenadas" onclick="switchView('calc-view', this)">📐</button>
 </div>
 
-<div id="main">
-    <div id="hud">Zoom: 100%</div>
-    <div id="canvas-wrapper">
-        <img id="planoImg">
-        <canvas id="drawLayer"></canvas>
+<div id="mapa-view" class="app-view active">
+    <div id="radio-silence-alert">🚫 SILENCIO RADIAL ACTIVO 🚫</div>
+    
+    <button class="menu-toggle" onclick="document.getElementById('panel').classList.toggle('escondido')">☰</button>
+
+    <div id="panel">
+        <div id="reloj-sistema">--:--:--</div>
+        <button id="btn-permiso" class="map-btn" style="background: #16a085; font-size:0.7em; margin-bottom:10px; display:none;" onclick="pedirPermisoNotificaciones()">🔔 ACTIVAR ALERTAS</button>
+
+        <div id="storm-box" class="storm-alert"></div>
+        <div id="proximity-box" class="proximity-alert"></div>
+
+        <button id="btnGps" class="map-btn btn-gps" onclick="iniciarSeguimiento()">📍 MI UBICACIÓN (GPS)</button>
+        <div id="utm-display" style="text-align:center; font-size:0.7em; color:#f39c12; margin-bottom:10px; font-family:monospace;">...</div>
+
+        <div class="tab-container">
+            <button class="tab-btn active" onclick="cambiarTab('voladuras')" id="tab-vol">💥 Voladura</button>
+            <button class="tab-btn" onclick="cambiarTab('gensets')" id="tab-gen">⚡ Gensets</button>
+        </div>
+
+        <button class="map-btn btn-sync" onclick="actualizarTodo()">🔄 ACTUALIZAR DATOS</button>
+
+        <div id="view-voladuras">
+            <button id="btn-interferencia" class="map-btn btn-alert" onclick="mostrarTablaInterferencias()">🚨 VER POSTES AFECTADOS</button>
+            <h4 style="color:#e74c3c">Programación Hoy</h4>
+            <div id="lista-voladuras"><em style="font-size:0.7em; color:#7f8c8d;">Cargando...</em></div>
+        </div>
+
+        <div id="view-gensets" style="display:none;">
+            <button id="btn-reporte" class="map-btn btn-report" onclick="cargarReporteNativo()">📄 VER REPORTE TÉCNICO</button>
+            
+            <div id="controles-registro-genset" style="display:none; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #9b59b6;">
+                <label style="font-size: 0.8em; color: #f1c40f; display: block; margin-bottom: 5px;">📍 Genset a posicionar:</label>
+                <select id="select-genset-maestro" style="width: 100%; padding: 8px; margin-bottom: 10px; background: #34495e; color: white; border: 1px solid #555; border-radius: 4px; box-sizing: border-box;">
+                    <option value="">Cargando Gensets...</option>
+                </select>
+                
+                <label style="font-size: 0.8em; color: #f1c40f; display: block; margin-bottom: 5px;">📝 Lugar / Referencia:</label>
+                <input type="text" id="input-lugar" placeholder="Ej. Fase 3..." style="width: 100%; padding: 8px; margin-bottom: 15px; background: #34495e; color: white; border: 1px solid #555; border-radius: 4px; box-sizing: border-box;">
+                
+                <button id="btn-registrar" class="map-btn" style="background:#27ae60; color:white; margin:0;" onclick="registrarGensetGPS()">🔋 GUARDAR UBICACIÓN AQUÍ</button>
+            </div>
+
+            <h4 style="color:#9b59b6">Generadores Activos</h4>
+            <div id="lista-gensets"><em style="font-size:0.7em; color:#7f8c8d;">Sin datos...</em></div>
+        </div>
+        <div class="footer-dev">Dev: <b>Johann Handel CP</b></div>
+    </div>
+
+    <div id="modal-reporte" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; align-items:center; justify-content:center;">
+        <div style="background:white; width:95%; height:85%; max-width:800px; border-radius:10px; overflow:hidden; position:relative; display:flex; flex-direction:column; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+            <div style="background:#2c3e50; color:white; padding:15px; display:flex; justify-content:space-between; align-items:center;">
+                <span id="modal-titulo" style="font-weight:bold;">📋 REPORTE</span>
+                <button onclick="cerrarReporte()" style="background:#e74c3c; border:none; color:white; font-weight:bold; width:30px; height:30px; border-radius:50%; cursor:pointer; font-size:16px;">X</button>
+            </div>
+            <div id="contenedor-tabla" style="overflow:auto; padding:0; height:100%; background:white;">
+                <div style="padding:20px; text-align:center; color:grey;">Cargando...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+</div>
+
+<div id="calc-view" class="app-view">
+    
+    <button class="menu-toggle" onclick="document.getElementById('calc-sidebar').classList.toggle('escondido')">☰</button>
+
+    <div id="calc-sidebar">
+        <h2>Coordenadas de Voladura</h2>
+        <h3>1. Cargar Plano</h3>
+        <input type="file" id="fileInput" accept="image/*,application/pdf">
+
+        <h3>2. Calibrar Grilla</h3>
+        <div class="input-group">
+            <div class="input-row"><label>Norte Base:</label><input type="number" id="valNorte" value=""></div>
+            <div class="input-row"><label>Este Base:</label><input type="number" id="valEste" value=""></div>
+            <div class="input-row"><label>Distancia (m):</label><input type="number" id="valDist" value=""></div>
+        </div>
+        
+        <button id="btn-norte" class="btn-action" onclick="activarModo('norte')">1. Definir Norte <span class="badge" id="badge-norte">0/2</span></button>
+        <button id="btn-este" class="btn-action" onclick="activarModo('este')">2. Definir Este <span class="badge" id="badge-este">0/2</span></button>
+
+        <h3>3. Voladuras</h3>
+        <button id="btn-dibujar" class="btn-action" onclick="activarModo('dibujo')">3. Dibujar Zona <span class="badge" id="badge-dibujo">0 pts</span></button>
+        
+        <span class="hint-text">💡 <b>ENTER:</b> Guardar | 🖱️ <b>CLIC DER:</b> Deshacer</span>
+
+        <button class="btn-calc" onclick="calcularTodo()">✅ CALCULAR DATOS</button>
+
+        <div id="output-box"></div>
+        
+        <button onclick="reiniciarCalculadora()" style="margin-top:20px; background:transparent; border:1px solid #555; color:#777; padding:10px; cursor:pointer; width:100%; border-radius:6px; font-weight:bold;">🔄 Limpiar Plano Actual</button>
+    </div>
+
+    <div id="canvas-main">
+        <div id="hud">Zoom: 100%</div>
+        <div id="canvas-wrapper">
+            <img id="planoImg">
+            <canvas id="drawLayer"></canvas>
+        </div>
     </div>
 </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
 
 <script>
+    // -----------------------------------------------------------------
+    // LÓGICA DE DOCK INFERIOR (SWITCH)
+    // -----------------------------------------------------------------
+    function switchView(viewId, btnElement) {
+        document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('active'));
+        
+        document.getElementById(viewId).classList.add('active');
+        btnElement.classList.add('active');
+        
+        if(viewId === 'mapa-view' && map) {
+            setTimeout(() => { map.invalidateSize(); }, 100);
+        }
+    }
+
+    // =================================================================
+    // CÓDIGO DEL MAPA (LEAFLET + GOOGLE SHEETS)
+    // =================================================================
+    var LINK_VOLADURAS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5BO75yc_nkIUxS-nPmodwWpYnbeIdILokPgV4ncqCPB09_23bp_zMHDVRXVmkBoP6gihaB1aVE-yJ/pub?gid=0&single=true&output=csv";
+    var LINK_GENSETS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5BO75yc_nkIUxS-nPmodwWpYnbeIdILokPgV4ncqCPB09_23bp_zMHDVRXVmkBoP6gihaB1aVE-yJ/pub?gid=2066463473&single=true&output=csv"; 
+    var LINK_REPORTE_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5BO75yc_nkIUxS-nPmodwWpYnbeIdILokPgV4ncqCPB09_23bp_zMHDVRXVmkBoP6gihaB1aVE-yJ/pub?gid=528288056&single=true&output=csv";
+    
+    // REEMPLAZA CON LA URL DE TU APPS SCRIPT
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbwXOY3ilI2bv6ffdiU90BFn8AAXN0xwEYojPG0-v9PD_dXi98JpY64qvcVtilu7hfIxhw/exec";
+
+    var datosEnergia = {
+      "type": "FeatureCollection",
+      "features": [
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.144659, -11.620111 ] }, "properties": { "name": "P4:R1-DT" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.144283, -11.620266 ] }, "properties": { "name": "P3:R1-DT" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.143304, -11.620668 ] }, "properties": { "name": "P2A:R1-DT" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.142626, -11.620960 ] }, "properties": { "name": "P2:R1-DT" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.142324, -11.621061 ] }, "properties": { "name": "P1: A3" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.144695, -11.620012 ] }, "properties": { "name": "P1:THREE WAY" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.144676, -11.619867 ] }, "properties": { "name": "P2:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.144647, -11.619542 ] }, "properties": { "name": "P3:S2" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.144552, -11.618566 ] }, "properties": { "name": "P4:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.144790, -11.618510 ] }, "properties": { "name": "P cable desconectado" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.145440, -11.618381 ] }, "properties": { "name": "P" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.144576, -11.617752 ] }, "properties": { "name": "P5 Secc: A3" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.144677, -11.620030 ] }, "properties": { "name": "110 DS 008" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.142324, -11.621025 ] }, "properties": { "name": "P1:A3" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.142626, -11.620843 ] }, "properties": { "name": "P2:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.142946, -11.620643 ] }, "properties": { "name": "P3:S0" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.143476, -11.620224 ] }, "properties": { "name": "P4:A1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.143482, -11.619555 ] }, "properties": { "name": "P5:A2" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.142417, -11.619261 ] }, "properties": { "name": "T6:S0-3C" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.141178, -11.618904 ] }, "properties": { "name": "T7:S0-3C" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.140178, -11.618954 ] }, "properties": { "name": "P6:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.138996, -11.619103 ] }, "properties": { "name": "P7:R1-PIN" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.137913, -11.619143 ] }, "properties": { "name": "P8:DOS POSTES-R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.137039, -11.618288 ] }, "properties": { "name": "P-9:DOS POSTES-R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.134680, -11.615675 ] }, "properties": { "name": "P13:S0+1 LP" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.135970, -11.617144 ] }, "properties": { "name": "P10:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.135786, -11.616918 ] }, "properties": { "name": "P11:S0" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.135224, -11.616306 ] }, "properties": { "name": "P12:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.134533, -11.615522 ] }, "properties": { "name": "P14:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.134302, -11.615270 ] }, "properties": { "name": "T15:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.132353, -11.614075 ] }, "properties": { "name": "P16:DOS POSTES-R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.131304, -11.613202 ] }, "properties": { "name": "P17:THREE WAY" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.130541, -11.612635 ] }, "properties": { "name": "P18:A1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.130014, -11.611642 ] }, "properties": { "name": "P19:A2" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.129915, -11.609925 ] }, "properties": { "name": "P20:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.129857, -11.609093 ] }, "properties": { "name": "P21:A2*" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.129621, -11.607512 ] }, "properties": { "name": "P22:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.129518, -11.606825 ] }, "properties": { "name": "P23:A2*" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.129442, -11.606174 ] }, "properties": { "name": "P24:A1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.129715, -11.605730 ] }, "properties": { "name": "P25:R1+2 PIN" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.130490, -11.604633 ] }, "properties": { "name": "P26:A1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.130949, -11.604342 ] }, "properties": { "name": "P27:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.131240, -11.604151 ] }, "properties": { "name": "P28:R1-PIN" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.131423, -11.604024 ] }, "properties": { "name": "P29:R1-PIN" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.131623, -11.603544 ] }, "properties": { "name": "P30:R1*+SECC" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.131686, -11.603344 ] }, "properties": { "name": "P31:S2*" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.131666, -11.602947 ] }, "properties": { "name": "P32:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.131618, -11.602350 ] }, "properties": { "name": "P33:S0-1C" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.131550, -11.601356 ] }, "properties": { "name": "P34:A1*" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.131724, -11.601337 ] }, "properties": { "name": "P35:A2" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.142324, -11.621097 ] }, "properties": { "name": "P1: A3" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153637, -11.604379 ] }, "properties": { "name": "P21:R1*" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.142626, -11.620960 ] }, "properties": { "name": "P2:R1-DT" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.143304, -11.620668 ] }, "properties": { "name": "P2A:R1-DT" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.144283, -11.620266 ] }, "properties": { "name": "P3:R1-DT" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.144659, -11.620111 ] }, "properties": { "name": "P4:R1-DT" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.145126, -11.619947 ] }, "properties": { "name": "P5:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.145850, -11.619745 ] }, "properties": { "name": "P6:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.147525, -11.619123 ] }, "properties": { "name": "R" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.147544, -11.619178 ] }, "properties": { "name": "S" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.147563, -11.619241 ] }, "properties": { "name": "T" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.151730, -11.617777 ] }, "properties": { "name": "R" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.151748, -11.617814 ] }, "properties": { "name": "S" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.151776, -11.617850 ] }, "properties": { "name": "T" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153489, -11.612815 ] }, "properties": { "name": "P15:A2+JUMPER" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.147415, -11.619051 ] }, "properties": { "name": "P7A RST" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.147571, -11.619159 ] }, "properties": { "name": "P7 RST" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.151721, -11.617823 ] }, "properties": { "name": "P8 RST:A2" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153559, -11.612119 ] }, "properties": { "name": "P16:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153630, -11.611513 ] }, "properties": { "name": "T" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153584, -11.611513 ] }, "properties": { "name": "S" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153529, -11.611513 ] }, "properties": { "name": "R" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153609, -11.610916 ] }, "properties": { "name": "T" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153563, -11.610916 ] }, "properties": { "name": "S" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153518, -11.610907 ] }, "properties": { "name": "R" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153538, -11.606848 ] }, "properties": { "name": "T18:TR1+JUMPER" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153830, -11.606629 ] }, "properties": { "name": "P19:A2" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153923, -11.604694 ] }, "properties": { "name": "P20:A2" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.152513, -11.603117 ] }, "properties": { "name": "P22:A2" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.151000, -11.603078 ] }, "properties": { "name": "P23:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.148982, -11.603023 ] }, "properties": { "name": "P25:R1**" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.149386, -11.603030 ] }, "properties": { "name": "P24:R1" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.148192, -11.602728 ] }, "properties": { "name": "P26:A2-LP" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.147433, -11.619006 ] }, "properties": { "name": "ST" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.147452, -11.619033 ] }, "properties": { "name": "R" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153584, -11.611549 ] }, "properties": { "name": "P17 RST:A2+JUMPER" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153490, -11.610971 ] }, "properties": { "name": "P17A RST:S0-3C" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153601, -11.604397 ] }, "properties": { "name": "110 DS 016" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153445, -11.606676 ] }, "properties": { "name": "P18A THREE WAY" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.152499, -11.617494 ] }, "properties": { "name": "P.09" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.152918, -11.616869 ] }, "properties": { "name": "P.10" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153319, -11.616062 ] }, "properties": { "name": "P.11" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153701, -11.615310 ] }, "properties": { "name": "P.12" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.154019, -11.614613 ] }, "properties": { "name": "P.13" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.154273, -11.614051 ] }, "properties": { "name": "P.14" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.154957, -11.613036 ] }, "properties": { "name": "P.14A" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153820, -11.612995 ] }, "properties": { "name": "P.14B" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.154847, -11.613081 ] }, "properties": { "name": "P.14A" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153645, -11.612987 ] }, "properties": { "name": "P.14C" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.153498, -11.612824 ] }, "properties": { "name": "P.15" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.148338, -11.602573 ] }, "properties": { "name": "P.25_S" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.148375, -11.602546 ] }, "properties": { "name": "P.25_R" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.148293, -11.602628 ] }, "properties": { "name": "P.25_T" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.145870, -11.599970 ] }, "properties": { "name": "P.26_R" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.145842, -11.599988 ] }, "properties": { "name": "P.26_S" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.145796, -11.599997 ] }, "properties": { "name": "P.26_T" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.145482, -11.599248 ] }, "properties": { "name": "P.27" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.144392, -11.597372 ] }, "properties": { "name": "P.28" } },
+        { "type": "Feature", "geometry": { "type": "Point", "coordinates": [ -76.142418, -11.596819 ] }, "properties": { "name": "P.29" } },
+        { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[-76.144659,-11.620110], [-76.144689,-11.620009], [-76.144674,-11.619860], [-76.144641,-11.619535], [-76.144550,-11.618555], [-76.144576,-11.617749]] }, "properties": { "name": "Drv. Antiguo Truck Shop", "stroke": "#ffff00" } },
+        { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[-76.142323,-11.621057], [-76.142628,-11.620956], [-76.143304,-11.620664], [-76.144282,-11.620263], [-76.144659,-11.620106]] }, "properties": { "name": "Anillo Mina C1", "stroke": "#55ffff" } },
+        { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [[-76.142327,-11.621024], [-76.142632,-11.620843], [-76.142945,-11.620642], [-76.143475,-11.620225], [-76.143482,-11.619557], [-76.142415,-11.619263], [-76.141176,-11.618905], [-76.140175,-11.618956], [-76.138995,-11.619103], [-76.137911,-11.619143], [-76.137034,-11.618290], [-76.135969,-11.617146], [-76.135784,-11.616920], [-76.135223,-11.616307], [-76.134679,-11.615676], [-76.134532,-11.615523], [-76.134301,-11.615268], [-76.132350,-11.614074], [-76.131300,-11.613201], [-76.130537,-11.612636], [-76.130011,-11.611643], [-76.129915,-11.609930], [-76.129855,-11.609084], [-76.129621,-11.607511], [-76.129519,-11.606821], [-76.129442,-11.606167], [-76.129717,-11.605728], [-76.130488,-11.604624], [-76.130949,-11.604339], [-76.131240,-11.604148], [-76.131421,-11.604021], [-76.131622,-11.603543], [-76.131685,-11.603344], [-76.131666,-11.602948], [-76.131616,-11.602349], [-76.131549,-11.601355], [-76.131724,-11.601336], [-76.132061,-11.600936]] }, "properties": { "name": "L.3", "stroke": "#ffff00" } },
+        { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [ [ -76.154243, -11.614043 ], [ -76.154943, -11.613021 ], [ -76.153813, -11.612988 ] ] }, "properties": { "name": "L.4", "stroke": "#ffff00" } },
+        { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [ [ -76.145848, -11.619735 ], [ -76.147563, -11.619237 ] ] }, "properties": { "name": "Ruta sin título", "stroke": "#ffff00" } },
+        { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [ [ -76.145848, -11.619737 ], [ -76.147525, -11.619123 ] ] }, "properties": { "name": "Ruta sin título", "stroke": "#ffff00" } },
+        { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [ [ -76.147454, -11.619027 ], [ -76.151777, -11.617845 ] ] }, "properties": { "name": "Ruta sin título", "stroke": "#ffff00" } },
+        { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [ [ -76.147435, -11.619002 ], [ -76.151725, -11.617773 ] ] }, "properties": { "name": "Ruta sin título", "stroke": "#ffff00" } },
+        { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [ [ -76.147565, -11.619239 ], [ -76.147433, -11.619003 ] ] }, "properties": { "name": "Cable Seco MT", "stroke": "#ff0000" } },
+        { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [ [ -76.147542, -11.619174 ], [ -76.147436, -11.619004 ] ] }, "properties": { "name": "Cable Seco MT", "stroke": "#ff0000" } },
+        { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [ [ -76.147525, -11.619121 ], [ -76.147454, -11.619027 ] ] }, "properties": { "name": "Cable Seco MT", "stroke": "#ff0000" } },
+        { "type": "Feature", "geometry": { "type": "LineString", "coordinates": [ [ -76.147446, -11.619015 ], [ -76.151752, -11.617813 ], [ -76.152530, -11.617488 ], [ -76.151796, -11.617850 ], [ -76.151727, -11.617770 ], [ -76.152528, -11.617487 ], [ -76.152888, -11.616857 ], [ -76.153288, -11.616053 ], [ -76.153673, -11.615291 ], [ -76.153990, -11.614599 ], [ -76.154244, -11.614024 ], [ -76.154872, -11.613074 ], [ -76.153822, -11.612995 ], [ -76.153669, -11.612983 ], [ -76.153517, -11.612819 ], [ -76.153572, -11.612118 ], [ -76.153649, -11.611508 ], [ -76.153600, -11.610908 ], [ -76.153566, -11.606864 ], [ -76.153564, -11.612114 ], [ -76.153534, -11.611510 ], [ -76.153537, -11.610900 ], [ -76.153559, -11.606853 ], [ -76.153878, -11.606607 ], [ -76.153940, -11.604695 ], [ -76.153657, -11.604373 ], [ -76.152543, -11.603112 ], [ -76.151035, -11.603073 ], [ -76.149438, -11.603026 ], [ -76.148371, -11.602547 ], [ -76.145877, -11.599959 ], [ -76.145487, -11.599240 ], [ -76.145845, -11.599973 ], [ -76.148331, -11.602575 ], [ -76.149437, -11.603027 ], [ -76.148293, -11.602627 ], [ -76.145798, -11.599981 ], [ -76.145487, -11.599242 ], [ -76.144399, -11.597333 ], [ -76.142420, -11.596797 ] ] }, "properties": { "name": "L.3", "stroke": "#ffff00" } }
+      ]
+    };
+
+    function togglePanel() { document.getElementById('panel').classList.toggle('escondido'); }
+    
+    function cambiarTab(tab) {
+        document.getElementById('view-voladuras').style.display = (tab === 'voladuras') ? 'block' : 'none';
+        document.getElementById('view-gensets').style.display = (tab === 'gensets') ? 'block' : 'none';
+        document.getElementById('tab-vol').className = (tab === 'voladuras') ? 'tab-btn active' : 'tab-btn';
+        document.getElementById('tab-gen').className = (tab === 'gensets') ? 'tab-btn active' : 'tab-btn';
+    }
+
+    function mostrarReporteGenerico(titulo, filas) {
+        var modal = document.getElementById('modal-reporte');
+        var contenedor = document.getElementById('contenedor-tabla');
+        var tituloSpan = document.getElementById('modal-titulo');
+        tituloSpan.innerText = titulo;
+        modal.style.display = "flex";
+        let htmlTabla = '<table id="tabla-dinamica"><tr><th>DETALLE</th><th>ESTADO</th></tr>';
+        filas.forEach(f => { htmlTabla += `<tr><td>${f.nombre}</td><td>${f.estado}</td></tr>`; });
+        htmlTabla += '</table>';
+        contenedor.innerHTML = htmlTabla;
+    }
+
+    async function cargarReporteNativo() {
+        var modal = document.getElementById('modal-reporte');
+        var contenedor = document.getElementById('contenedor-tabla');
+        var tituloSpan = document.getElementById('modal-titulo');
+        tituloSpan.innerText = "📋 REPORTE TÉCNICO";
+        modal.style.display = "flex";
+        contenedor.innerHTML = '<div style="padding:20px; text-align:center; color:grey;">⏳ Descargando datos...</div>';
+        try {
+            const response = await fetch(LINK_REPORTE_CSV + '&t=' + Date.now());
+            const text = await response.text();
+            const filas = text.split('\n');
+            let htmlTabla = '<table id="tabla-dinamica">';
+            for (let i = 0; i < filas.length; i++) {
+                if(filas[i].trim() === "") continue;
+                var celdas = filas[i].split(',');
+                htmlTabla += '<tr>';
+                for (let j = 0; j < celdas.length; j++) {
+                    var tag = (i === 0) ? 'th' : 'td';
+                    htmlTabla += `<${tag}>${celdas[j]}</${tag}>`;
+                }
+                htmlTabla += '</tr>';
+            }
+            htmlTabla += '</table>';
+            contenedor.innerHTML = htmlTabla;
+        } catch (error) { contenedor.innerHTML = '<div style="padding:20px; text-align:center; color:red;">❌ Error al cargar reporte.</div>'; }
+    }
+
+    function cerrarReporte() { document.getElementById('modal-reporte').style.display = "none"; }
+
+    setInterval(() => { document.getElementById("reloj-sistema").innerText = new Date().toLocaleTimeString('es-PE', { hour12: false }); }, 1000);
+
+    proj4.defs("EPSG:32718", "+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs");
+    
+    var map = L.map('map', { zoomControl: false, maxZoom: 22 }).setView([-11.619, -76.08], 13);
+    
+    var mapaSatelite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { 
+        attribution: '© Google',
+        maxZoom: 22, 
+        maxNativeZoom: 20 // Si acercas más del nivel 20, estira la foto en lugar de dar error
+    });
+    var mapaPlano = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        attribution: 'OSM', 
+        maxZoom: 22, 
+        maxNativeZoom: 19 
+    });
+    var mapaTopo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { 
+        attribution: 'OTM', 
+        maxZoom: 22, 
+        maxNativeZoom: 17 
+    });
+    
+    mapaSatelite.addTo(map);
+    
+    var capaVoladuras = L.layerGroup().addTo(map);
+    var capaGensets = L.layerGroup().addTo(map);
+    var capaGPS = L.layerGroup().addTo(map);
+    var capaTormentas = L.layerGroup().addTo(map);
+    var lineaDistancia = L.layerGroup().addTo(map);
+
+    function estiloEnergia(feature) { return { color: "#999", weight: 1, opacity: 0.1, dashArray: '5, 5' }; }
+    function estiloPuntos(feature, latlng) { return L.circleMarker(latlng, { radius: 2, fillColor: "#ccc", color: "#000", weight: 0.5, opacity: 0.1, fillOpacity: 0.1 }); }
+
+    var capaEnergia = L.geoJSON(datosEnergia, {
+        style: estiloEnergia,
+        pointToLayer: estiloPuntos,
+        onEachFeature: function (feature, layer) { if (feature.properties && feature.properties.name) { layer.bindPopup("🔌 <b>" + feature.properties.name + "</b>"); } }
+    }).addTo(map);
+
+    L.control.layers( { "🌎 Satélite": mapaSatelite, "🗺️ Plano": mapaPlano, "⛰️ Topográfico": mapaTopo }, { "⚡ Sensores": capaTormentas, "💥 Voladuras": capaVoladuras, "🟣 Gensets": capaGensets, "🔌 Líneas Eléctricas": capaEnergia }, { position: 'topright' } ).addTo(map);
+
+    const sensores = [ { nombre: "MINA", lat: -11.61543, lon: -76.14331 }, { nombre: "CARHUACOTO", lat: -11.58529, lon: -76.06169 }, { nombre: "TUNSHURUCO", lat: -11.67360, lon: -76.13777 }, { nombre: "KINGSMILL", lat: -11.63342, lon: -76.05691 } ];
+    sensores.forEach(s => { L.marker([s.lat, s.lon], {icon: L.divIcon({html:'⚡', className:''})}).addTo(capaTormentas); L.circle([s.lat, s.lon], {radius: 5200, color:'#3498db', fillColor:'#3498db', fillOpacity:0.15, weight:1}).addTo(capaTormentas); });
+
+    var zonasProgramadas = [];
+    var zonasActivasAhora = []; 
+    var postesAfectados = [];
+    var intervaloChequeo = null;
+
+    function actualizarTodo() { cargarVoladuras(); cargarGensets(); }
+
+    async function cargarVoladuras() {
+        var btn = document.querySelector(".btn-sync");
+        btn.innerHTML = "⏳ CARGANDO...";
+        try {
+            const response = await fetch(LINK_VOLADURAS + '&t=' + Date.now(), { cache: 'no-store', pragma: 'no-cache' });
+            const text = await response.text();
+            zonasProgramadas = [];
+            const filas = text.split('\n');
+            for (let i = 1; i < filas.length; i++) {
+                const col = filas[i].split(',');
+                if (col.length >= 6 && col[0].trim() !== "") {
+                    zonasProgramadas.push({ n: parseFloat(col[0]), e: parseFloat(col[1]), r: parseFloat(col[2]), detalle: col[3], hora: col[4].trim(), dur: parseInt(col[5]) });
+                }
+            }
+            if (intervaloChequeo) clearInterval(intervaloChequeo);
+            actualizarMapaSegunHora();
+            intervaloChequeo = setInterval(actualizarMapaSegunHora, 1000);
+            btn.innerHTML = "✅ LISTO"; setTimeout(() => { btn.innerHTML = "🔄 ACTUALIZAR DATOS"; }, 3000);
+        } catch (err) { console.error(err); btn.innerHTML = "❌ ERROR VOL"; }
+    }
+
+    async function cargarGensets() {
+        if (!LINK_GENSETS.startsWith("http")) return; 
+        try {
+            const response = await fetch(LINK_GENSETS + '&t=' + Date.now(), { cache: 'no-store', pragma: 'no-cache' });
+            const text = await response.text();
+            const filas = text.split('\n');
+            capaGensets.clearLayers();
+            const listaDiv = document.getElementById("lista-gensets");
+            listaDiv.innerHTML = "";
+            
+            let nombresUnicos = new Set(); 
+
+            for (let i = 1; i < filas.length; i++) {
+                const col = filas[i].split(',');
+                if (col.length >= 3) {
+                    const nombre = col[2] ? col[2].trim() : "";
+                    if (nombre !== "" && nombre !== "Nombre Genset" && nombre !== "Código") nombresUnicos.add(nombre);
+                }
+
+                if (col.length >= 4 && col[0].trim() !== "") {
+                    const n = parseFloat(col[0]); const e = parseFloat(col[1]); 
+                    const nombre = col[2] ? col[2].trim() : ""; 
+                    const estado = col[3] ? col[3].trim().toUpperCase() : ""; 
+                    const lugar = col[4] || "Sin datos"; const horas = col[5] || "-"; const tension = col[6] || "-";
+                    
+                    if (estado.includes("TRABAJANDO") && !isNaN(n)) {
+                        try {
+                            const c = proj4("EPSG:32718", "EPSG:4326", [e, n]);
+                            const lat = c[1]; const lon = c[0];
+                            const iconoGenset = L.divIcon({ className: 'genset-marker', html: `<svg viewBox="0 0 24 24"><path d="M4 6h16v10H4z"/><path d="M6 8h12v6H6z" fill="#8e44ad"/><path d="M7 9h3v4H7zm4 0h3v4h-3zm4 0h3v4h-3z" fill="white"/><path d="M5 16v3h2v-3m10 0v3h2v-3" stroke="white" stroke-width="2"/></svg>`, iconSize: [28, 28], iconAnchor: [14, 14] });
+                            const popupContent = `<div style="min-width:180px;"><h3 style="margin:0; color:#8e44ad;">${nombre}</h3><table class="tabla-info"><tr><td>Estado:</td><td><b style="color:#27ae60">${estado}</b></td></tr><tr><td>Lugar:</td><td>${lugar}</td></tr><tr><td>Horas:</td><td>${horas} hrs</td></tr><tr><td>Tensión:</td><td>${tension}</td></tr><tr><td>Coord:</td><td><small>${n}, ${e}</small></td></tr></table></div>`;
+                            L.marker([lat, lon], {icon: iconoGenset}).bindPopup(popupContent).addTo(capaGensets);
+                            listaDiv.innerHTML += `<div class="list-item genset-item" onclick="viajarA(${lat}, ${lon})"><div><strong>${nombre}</strong><br><small>${lugar}</small></div><div style="font-size:1.2em; color:#8e44ad">⚡</div></div>`;
+                        } catch(e) {}
+                    }
+                }
+            }
+            
+            if (listaDiv.innerHTML === "") listaDiv.innerHTML = "<div style='text-align:center;color:grey'>No hay gensets activos.</div>";
+
+            let selectGenset = document.getElementById("select-genset-maestro");
+            let opcionesHTML = '<option value="">-- Selecciona un Genset --</option>';
+            Array.from(nombresUnicos).sort().forEach(nombreGen => { opcionesHTML += `<option value="${nombreGen}">${nombreGen}</option>`; });
+            selectGenset.innerHTML = opcionesHTML;
+
+        } catch (err) { console.error("Error Gensets", err); }
+    }
+
+    window.viajarA = function(lat, lon) { map.flyTo([lat, lon], 18); if (window.innerWidth < 600) togglePanel(); };
+
+    function actualizarMapaSegunHora() {
+        const ahora = new Date();
+        const listaDiv = document.getElementById("lista-voladuras");
+        const alertaDiv = document.getElementById("radio-silence-alert");
+        listaDiv.innerHTML = ""; capaVoladuras.clearLayers(); 
+        let haySilencioRadial = false; zonasActivasAhora = [];
+
+        zonasProgramadas.forEach(zona => {
+            if (!zona.hora) return;
+            const horaLimpia = zona.hora.trim().substring(0, 5); 
+            const [hh, mm] = horaLimpia.split(':');
+            
+            const fechaInicio = new Date(); fechaInicio.setHours(hh, mm, 0);
+            const fechaFin = new Date(fechaInicio.getTime() + zona.dur * 60000);
+            let estadoTexto = ""; let colorBorde = ""; let colorMapa = ""; let dibujar = false; let esPeligroso = false;
+
+            if (ahora > fechaFin) {
+                estadoTexto = "FINALIZADO"; colorBorde = "#7f8c8d";
+            } else if (ahora >= fechaInicio && ahora <= fechaFin) {
+                estadoTexto = "🚨 EN EJECUCIÓN"; colorBorde = "#e74c3c"; colorMapa = "red"; dibujar = true; haySilencioRadial = true; esPeligroso = true;
+            } else {
+                estadoTexto = "⏳ PROGRAMADO"; colorBorde = "#f39c12"; colorMapa = "orange"; dibujar = true; esPeligroso = true;
+            }
+
+            if (dibujar && !isNaN(zona.n)) {
+                try {
+                    const c = proj4("EPSG:32718", "EPSG:4326", [zona.e, zona.n]);
+                    if (esPeligroso) zonasActivasAhora.push({ center: L.latLng(c[1], c[0]), radius: zona.r, name: zona.detalle, type: colorMapa });
+                    const colorHex = (colorMapa === "red") ? "#e74c3c" : "#f39c12";
+                    const opacidad = (colorMapa === "red") ? 0.5 : 0.2;
+                    L.circle([c[1], c[0]], { radius: zona.r, color: colorHex, fillColor: colorHex, fillOpacity: opacidad, weight: 2 }).bindPopup(`<b>${zona.detalle}</b><br>${zona.hora}`).addTo(capaVoladuras);
+                } catch(e) {}
+            }
+
+            if (estadoTexto !== "FINALIZADO" || (ahora - fechaFin) < 7200000) {
+                listaDiv.innerHTML += `<div class="list-item" style="border-left-color: ${colorBorde};"><div><strong style="font-size:1.1em">${zona.detalle}</strong><br><span style="color:${colorBorde}; font-weight:bold;">${estadoTexto}</span></div><div style="text-align:right;">${zona.hora}<br><small>${zona.dur} min</small></div></div>`;
+            }
+        });
+
+        alertaDiv.style.display = haySilencioRadial ? "block" : "none";
+        if (listaDiv.innerHTML === "") listaDiv.innerHTML = "<div style='text-align:center; padding:10px; color:#7f8c8d;'>Sin voladuras pendientes.</div>";
+        if (miPosicion) chequearProximidadVoladura();
+        verificarInterferencias(); 
+    }
+
+    function verificarInterferencias() {
+        postesAfectados = []; 
+        capaEnergia.eachLayer(function(layer) {
+            if (layer instanceof L.CircleMarker) { layer.setStyle({ fillColor: "#ccc", color: "#000", radius: 2, weight: 0.5, opacity: 0.1, fillOpacity: 0.1 }); } 
+            else if (layer instanceof L.Polyline) { layer.setStyle({ color: "#999", weight: 1, opacity: 0.1, dashArray: '5, 5' }); }
+        });
+
+        if (zonasActivasAhora.length === 0) { document.getElementById('btn-interferencia').style.display = 'none'; return; }
+
+        zonasActivasAhora.forEach(zona => {
+            capaEnergia.eachLayer(function(layer) {
+                let afectado = false;
+                if (layer instanceof L.CircleMarker) {
+                    if (map.distance(layer.getLatLng(), zona.center) <= zona.radius) afectado = true;
+                } else if (layer instanceof L.Polyline) {
+                    let puntos = layer.getLatLngs().flat ? layer.getLatLngs().flat(99) : layer.getLatLngs(); 
+                    for (let p of puntos) { if (map.distance(p, zona.center) <= zona.radius) { afectado = true; break; } }
+                }
+
+                if (afectado) {
+                    postesAfectados.push({ nombre: layer.feature.properties.name || "Sin Nombre", estado: "⚠️ " + zona.name });
+                    if (layer instanceof L.CircleMarker) {
+                        layer.setStyle({ fillColor: "red", color: "white", radius: 6, weight: 2, opacity: 1, fillOpacity: 1 });
+                        layer.bindPopup("🚨 <b>¡AFECTADO!</b><br>" + (layer.feature.properties.name || "Sin nombre"));
+                    } else { layer.setStyle({ color: "red", weight: 5, dashArray: null, opacity: 1 }); }
+                }
+            });
+        });
+
+        var btnAlert = document.getElementById('btn-interferencia');
+        if (postesAfectados.length > 0) {
+            btnAlert.style.display = 'block';
+            btnAlert.innerText = `🚨 VER ${postesAfectados.length} POSTES AFECTADOS`;
+            enviarNotificacion("ALERTA", `Se detectaron ${postesAfectados.length} interferencias.`);
+        } else { btnAlert.style.display = 'none'; }
+    }
+
+    function mostrarTablaInterferencias() { mostrarReporteGenerico("⚠️ POSTES AFECTADOS", postesAfectados); }
+
+    var notificacionEnviada = false;
+    function pedirPermisoNotificaciones() {
+        if (!("Notification" in window)) alert("No soportado");
+        else if (Notification.permission !== "denied") {
+            Notification.requestPermission().then(function (p) { if (p === "granted") { alert("Notificaciones Activadas"); document.getElementById('btn-permiso').style.display = 'none'; } });
+        }
+    }
+    function enviarNotificacion(t, c) {
+        if (Notification.permission === "granted" && !notificacionEnviada) {
+            new Notification("🚨 ALERTA", { body: t + ": " + c });
+            notificacionEnviada = true; setTimeout(() => { notificacionEnviada = false; }, 300000); 
+        }
+    }
+    if (Notification.permission !== "granted" && "Notification" in window) document.getElementById('btn-permiso').style.display = 'block';
+
+    var truckIcon = L.divIcon({ className: 'car-container', html: `<svg class="car-icon" viewBox="0 0 24 24" fill="#00FF00" xmlns="http://www.w3.org/2000/svg"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5H6.5C5.84 5 5.28 5.42 5.08 6.01L3 12V20C3 20.55 3.45 21 4 21H5C5.55 21 6 20.55 6 20V19H18V20C18 20.55 18.45 21 19 21H20C20.55 21 21 20.55 21 20V12L18.92 6.01ZM6.5 16C5.67 16 5 15.33 5 14.5C5 13.67 5.67 13 6.5 13C7.33 13 8 13.67 8 14.5C8 15.33 7.33 16 6.5 16ZM17.5 16C16.67 16 16 15.33 16 14.5C16 13.67 16.67 13 17.5 13C18.33 13 19 13.67 19 14.5C19 15.33 18.33 16 17.5 16ZM5 11L6.5 6.5H17.5L19 11H5Z"/></svg>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+    var marcadorVehiculo = null; var miPosicion = null;
+
+    function iniciarSeguimiento() {
+        var btn = document.getElementById("btnGps");
+        if (!navigator.geolocation) { alert("Sin GPS"); return; }
+        btn.innerHTML = "🔄 BUSCANDO..."; btn.style.backgroundColor = "#e67e22";
+        navigator.geolocation.watchPosition((pos) => {
+            var lat = pos.coords.latitude; var lon = pos.coords.longitude;
+            miPosicion = L.latLng(lat, lon);
+            try {
+                var utm = proj4("EPSG:4326", "EPSG:32718", [lon, lat]);
+                document.getElementById("utm-display").innerHTML = `N: ${utm[1].toFixed(0)} | E: ${utm[0].toFixed(0)}`;
+            } catch(e) {}
+            btn.innerHTML = "✅ GPS ACTIVO"; btn.style.backgroundColor = "#27ae60";
+            document.getElementById("controles-registro-genset").style.display = "block";
+            if (!marcadorVehiculo) { marcadorVehiculo = L.marker([lat, lon], {icon: truckIcon}).addTo(capaGPS); map.flyTo([lat, lon], 16); }
+            else { marcadorVehiculo.setLatLng([lat, lon]); }
+            chequearTormentas(); chequearProximidadVoladura();
+        }, (err) => { btn.innerHTML = "⚠️ SIN SEÑAL"; btn.style.backgroundColor = "#c0392b"; }, { enableHighAccuracy: true });
+    }
+
+    function chequearProximidadVoladura() {
+        if (!miPosicion || zonasActivasAhora.length === 0) { document.getElementById("proximity-box").style.display = "none"; return; }
+        var box = document.getElementById("proximity-box");
+        var alertaActiva = false; var mensaje = ""; var claseCritica = false;
+        lineaDistancia.clearLayers();
+        const UMBRAL = 1000;
+        zonasActivasAhora.forEach(zona => {
+            var distCentro = map.distance(miPosicion, zona.center);
+            var distBorde = distCentro - zona.radius;
+            if (distBorde <= 0) {
+                alertaActiva = true; claseCritica = true; mensaje = `⛔ ¡PELIGRO!<br>ESTÁS DENTRO DE: ${zona.name}`;
+                L.polyline([miPosicion, zona.center], {color: 'red', weight: 4}).addTo(lineaDistancia);
+                enviarNotificacion("PELIGRO PERSONAL", "Usted está DENTRO de zona de voladura");
+            } else if (distBorde <= UMBRAL) {
+                if (!claseCritica) {
+                    alertaActiva = true; mensaje = `⚠️ PRECAUCIÓN<br>A ${distBorde.toFixed(0)}m de: ${zona.name}`;
+                    L.polyline([miPosicion, zona.center], {color: 'orange', dashArray: '5, 10'}).addTo(lineaDistancia);
+                }
+            }
+        });
+        if (alertaActiva) { box.style.display = "block"; box.innerHTML = mensaje; box.className = claseCritica ? "proximity-alert proximity-critical" : "proximity-alert"; }
+        else { box.style.display = "none"; }
+    }
+
+    function chequearTormentas() {
+        if (!miPosicion) return;
+        var box = document.getElementById("storm-box"); var detectados = [];
+        sensores.forEach(s => { if (map.distance(miPosicion, [s.lat, s.lon]) < 5200) detectados.push(s.nombre); });
+        if (detectados.length > 0) { box.style.display = "block"; box.innerHTML = `⚡ EN SENSOR: <br>${detectados.join(" y ")}`; }
+        else { box.style.display = "none"; }
+    }
+
+    function registrarGensetGPS() {
+        if (!miPosicion) { alert("❌ Primero activa el GPS y espera a tener señal."); return; }
+        let selectGenset = document.getElementById("select-genset-maestro"); let inputLugar = document.getElementById("input-lugar");
+        let nombreGenset = selectGenset.value; let lugarGenset = inputLugar.value;
+
+        if (!nombreGenset || nombreGenset.trim() === "") { alert("⚠️ Por favor selecciona un Genset de la lista."); return; }
+        if (!lugarGenset || lugarGenset.trim() === "") { alert("⚠️ Por favor escribe el Lugar o Referencia."); return; }
+
+        let utm; try { utm = proj4("EPSG:4326", "EPSG:32718", [miPosicion.lng, miPosicion.lat]); } catch(e) { alert("Error al calcular coordenadas UTM."); return; }
+        let este = utm[0].toFixed(0); let norte = utm[1].toFixed(0);
+
+        let btnReg = document.getElementById("btn-registrar"); btnReg.innerText = "⏳ ENVIANDO...";
+
+        let iframe = document.getElementById("hidden_iframe");
+        if (!iframe) { iframe = document.createElement("iframe"); iframe.name = "hidden_iframe"; iframe.id = "hidden_iframe"; iframe.style.display = "none"; document.body.appendChild(iframe); }
+
+        let form = document.createElement("form");
+        form.action = URL_APPS_SCRIPT; form.method = "GET"; form.target = "hidden_iframe"; form.style.display = "none";
+        
+        let pNorte = document.createElement("input"); pNorte.name = "norte"; pNorte.value = norte; form.appendChild(pNorte);
+        let pEste = document.createElement("input"); pEste.name = "este"; pEste.value = este; form.appendChild(pEste);
+        let pNombre = document.createElement("input"); pNombre.name = "nombre"; pNombre.value = nombreGenset; form.appendChild(pNombre);
+        let pLugar = document.createElement("input"); pLugar.name = "lugar"; pLugar.value = lugarGenset; form.appendChild(pLugar);
+
+        document.body.appendChild(form);
+        iframe.onload = function() {
+            alert(`✅ Ubicación de ${nombreGenset} en ${lugarGenset} registrada.`);
+            btnReg.innerText = "🔋 GUARDAR UBICACIÓN AQUÍ"; selectGenset.value = ""; inputLugar.value = ""; form.remove(); setTimeout(cargarGensets, 2000);
+        };
+        form.submit();
+    }
+    window.addEventListener('load', actualizarTodo);
+
+    // =================================================================
+    // CÓDIGO DE LA CALCULADORA DE VOLADURAS
+    // =================================================================
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    let modo = null; 
-    let clicsNorte = []; let clicsEste = []; 
-    let poligonoActual = []; 
-    let poligonosGuardados = []; 
-    let resultadosGlobales = [];
-
+    let calcModo = null; let clicsNorte = []; let clicsEste = []; 
+    let poligonoActual = []; let poligonosGuardados = []; let resultadosGlobales = [];
     let transform = { x: 0, y: 0, scale: 1 };
     let isPanning = false, startPanX = 0, startPanY = 0;
 
-    let img = document.getElementById('planoImg');
-    let canvas = document.getElementById('drawLayer');
-    let ctx = canvas.getContext('2d');
-    let wrapper = document.getElementById('canvas-wrapper');
-    let mainContainer = document.getElementById('main');
-    let hud = document.getElementById('hud');
+    let imgCalc = document.getElementById('planoImg');
+    let canvasCalc = document.getElementById('drawLayer');
+    let ctxCalc = canvasCalc.getContext('2d');
+    let wrapperCalc = document.getElementById('canvas-wrapper');
+    let mainContainerCalc = document.getElementById('canvas-main');
+    let hudCalc = document.getElementById('hud');
 
     document.getElementById('fileInput').addEventListener('change', async function(e){
         let file = e.target.files[0];
@@ -143,290 +781,187 @@
                 let tempCtx = tempCanvas.getContext('2d');
                 tempCanvas.height = viewport.height; tempCanvas.width = viewport.width;
                 await page.render({canvasContext: tempCtx, viewport: viewport}).promise;
-                img.src = tempCanvas.toDataURL();
+                imgCalc.src = tempCanvas.toDataURL();
                 configurarEntorno(viewport.width, viewport.height);
             };
             fileReader.readAsArrayBuffer(file);
         } else {
             let reader = new FileReader();
-            reader.onload = function(event){ img.src = event.target.result; img.onload = () => configurarEntorno(img.width, img.height); }
+            reader.onload = function(event){ imgCalc.src = event.target.result; imgCalc.onload = () => configurarEntorno(imgCalc.width, imgCalc.height); }
             reader.readAsDataURL(file);
         }
     });
 
     function configurarEntorno(w, h) {
-        canvas.width = w; canvas.height = h;
-        wrapper.style.width = w + "px"; wrapper.style.height = h + "px";
-        let scaleStart = Math.min((mainContainer.clientWidth - 50)/w, (mainContainer.clientHeight - 50)/h);
+        canvasCalc.width = w; canvasCalc.height = h;
+        wrapperCalc.style.width = w + "px"; wrapperCalc.style.height = h + "px";
+        let scaleStart = Math.min((mainContainerCalc.clientWidth - 50)/w, (mainContainerCalc.clientHeight - 50)/h);
         transform.scale = scaleStart;
-        transform.x = (mainContainer.clientWidth - w * scaleStart) / 2;
-        transform.y = (mainContainer.clientHeight - h * scaleStart) / 2;
+        transform.x = (mainContainerCalc.clientWidth - w * scaleStart) / 2;
+        transform.y = (mainContainerCalc.clientHeight - h * scaleStart) / 2;
         actualizarTransform();
     }
 
-    mainContainer.addEventListener('wheel', function(e) {
+    mainContainerCalc.addEventListener('wheel', function(e) {
+        if (!document.getElementById('calc-view').classList.contains('active')) return;
         e.preventDefault();
         const delta = -Math.sign(e.deltaY);
         let newScale = transform.scale + (delta * 0.15 * transform.scale);
         if (newScale < 0.05) newScale = 0.05;
-        let mouseX = e.clientX - mainContainer.getBoundingClientRect().left;
-        let mouseY = e.clientY - mainContainer.getBoundingClientRect().top;
+        // Al estar a pantalla completa, calculamos directo sobre el cliente
+        let mouseX = e.clientX; let mouseY = e.clientY;  
         transform.x = mouseX - ((mouseX - transform.x) / transform.scale * newScale);
         transform.y = mouseY - ((mouseY - transform.y) / transform.scale * newScale);
         transform.scale = newScale;
         actualizarTransform();
     });
 
-    mainContainer.addEventListener('mousedown', function(e) {
+    mainContainerCalc.addEventListener('mousedown', function(e) {
         if (e.button === 1 || e.getModifierState("Space")) {
             e.preventDefault(); isPanning = true;
             startPanX = e.clientX - transform.x; startPanY = e.clientY - transform.y;
-            mainContainer.style.cursor = 'grabbing';
+            mainContainerCalc.style.cursor = 'grabbing';
         }
     });
 
     window.addEventListener('mousemove', function(e) {
-        if (isPanning) { transform.x = e.clientX - startPanX; transform.y = e.clientY - startPanY; actualizarTransform(); }
-    });
-    window.addEventListener('mouseup', () => { isPanning = false; mainContainer.style.cursor = 'crosshair'; });
-    
-    // --- TECLADO (Atajo Enter y Espacio) ---
-    window.addEventListener('keydown', (e) => { 
-        if(e.code === 'Space') mainContainer.style.cursor = 'grab'; 
-        
-        // Atajo ENTER para guardar polígono
-        if(e.code === 'Enter') {
-            if (modo === 'dibujo' && poligonoActual.length > 2) {
-                guardarPoligono();
-            }
+        if (isPanning && document.getElementById('calc-view').classList.contains('active')) { 
+            transform.x = e.clientX - startPanX; transform.y = e.clientY - startPanY; actualizarTransform(); 
         }
     });
-    window.addEventListener('keyup', (e) => { if(e.code === 'Space') mainContainer.style.cursor = 'crosshair'; });
+    window.addEventListener('mouseup', () => { isPanning = false; mainContainerCalc.style.cursor = 'crosshair'; });
+    
+    window.addEventListener('keydown', (e) => { 
+        if(document.getElementById('calc-view').classList.contains('active')) {
+            if(e.code === 'Space') mainContainerCalc.style.cursor = 'grab'; 
+            if(e.code === 'Enter' && calcModo === 'dibujo' && poligonoActual.length > 2) guardarPoligono();
+        }
+    });
+    window.addEventListener('keyup', (e) => { if(e.code === 'Space') mainContainerCalc.style.cursor = 'crosshair'; });
 
     function actualizarTransform() {
-        wrapper.style.transform = `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
-        hud.innerText = "Zoom: " + Math.round(transform.scale * 100) + "%";
+        wrapperCalc.style.transform = `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
+        hudCalc.innerText = "Zoom: " + Math.round(transform.scale * 100) + "%";
     }
 
-    // --- LÓGICA DE RATÓN MEJORADA ---
-    
-    // Clic Izquierdo (Dibujar puntos)
-    wrapper.addEventListener('mousedown', function(e){
-        if (e.button !== 0 || e.getModifierState("Space") || !modo) return; 
-        
-        let rect = img.getBoundingClientRect();
-        let x = (e.clientX - rect.left) * (img.width / rect.width);
-        let y = (e.clientY - rect.top) * (img.height / rect.height);
+    wrapperCalc.addEventListener('mousedown', function(e){
+        if (e.button !== 0 || e.getModifierState("Space") || !calcModo) return; 
+        let rect = imgCalc.getBoundingClientRect();
+        let x = (e.clientX - rect.left) * (imgCalc.width / rect.width);
+        let y = (e.clientY - rect.top) * (imgCalc.height / rect.height);
 
-        if(modo === 'norte') { clicsNorte.push(y); if(clicsNorte.length === 2) modo = null; }
-        else if(modo === 'este') { clicsEste.push(x); if(clicsEste.length === 2) modo = null; }
-        else if(modo === 'dibujo') { poligonoActual.push({x:x, y:y}); }
-        actualizarUI(); render();
+        if(calcModo === 'norte') { clicsNorte.push(y); if(clicsNorte.length === 2) calcModo = null; }
+        else if(calcModo === 'este') { clicsEste.push(x); if(clicsEste.length === 2) calcModo = null; }
+        else if(calcModo === 'dibujo') { poligonoActual.push({x:x, y:y}); }
+        actualizarUICalc(); renderCalc();
     });
 
-    // Clic Derecho (Deshacer último punto)
-    wrapper.addEventListener('contextmenu', function(e){
-        e.preventDefault(); // Evita que salga el menú contextual del navegador
-        
-        if (modo === 'dibujo' && poligonoActual.length > 0) {
-            poligonoActual.pop(); // Borra el último punto del array
-            actualizarUI(); 
-            render();
-        }
+    wrapperCalc.addEventListener('contextmenu', function(e){
+        e.preventDefault(); 
+        if (calcModo === 'dibujo' && poligonoActual.length > 0) { poligonoActual.pop(); actualizarUICalc(); renderCalc(); }
     });
 
     function activarModo(n) {
-        modo = n;
-        if(modo === 'norte') clicsNorte = [];
-        if(modo === 'este') clicsEste = [];
-        if(modo === 'dibujo') {
-            if(poligonoActual.length > 2) guardarPoligono(); 
-            poligonoActual = []; 
-        }
-        actualizarUI(); render();
+        calcModo = n;
+        if(calcModo === 'norte') clicsNorte = [];
+        if(calcModo === 'este') clicsEste = [];
+        if(calcModo === 'dibujo') { if(poligonoActual.length > 2) guardarPoligono(); poligonoActual = []; }
+        actualizarUICalc(); renderCalc();
     }
 
     function guardarPoligono() {
-        if(poligonoActual.length > 2) {
-            poligonosGuardados.push([...poligonoActual]); 
-            poligonoActual = []; 
-            actualizarUI(); render();
-        } else {
-            alert("Dibuja al menos 3 puntos antes de guardar.");
-        }
+        if(poligonoActual.length > 2) { poligonosGuardados.push([...poligonoActual]); poligonoActual = []; actualizarUICalc(); renderCalc(); } 
+        else { alert("Dibuja al menos 3 puntos antes de guardar."); }
     }
 
-    function actualizarUI() {
-        document.querySelectorAll('.btn-action').forEach(b => b.classList.remove('waiting', 'done'));
+    function actualizarUICalc() {
+        document.querySelectorAll('#calc-view .btn-action').forEach(b => b.classList.remove('waiting', 'done'));
         
-        let btnN = document.getElementById('btn-norte');
-        document.getElementById('badge-norte').innerText = clicsNorte.length + "/2";
-        if(modo === 'norte') btnN.classList.add('waiting'); else if(clicsNorte.length === 2) btnN.classList.add('done');
+        let btnN = document.getElementById('btn-norte'); document.getElementById('badge-norte').innerText = clicsNorte.length + "/2";
+        if(calcModo === 'norte') btnN.classList.add('waiting'); else if(clicsNorte.length === 2) btnN.classList.add('done');
 
-        let btnE = document.getElementById('btn-este');
-        document.getElementById('badge-este').innerText = clicsEste.length + "/2";
-        if(modo === 'este') btnE.classList.add('waiting'); else if(clicsEste.length === 2) btnE.classList.add('done');
+        let btnE = document.getElementById('btn-este'); document.getElementById('badge-este').innerText = clicsEste.length + "/2";
+        if(calcModo === 'este') btnE.classList.add('waiting'); else if(clicsEste.length === 2) btnE.classList.add('done');
 
-        let btnD = document.getElementById('btn-dibujar');
-        document.getElementById('badge-dibujo').innerText = poligonoActual.length + " pts";
-        if(modo === 'dibujo') {
-            btnD.classList.add('waiting');
-        } else {
-            if(poligonosGuardados.length > 0 || poligonoActual.length > 2) btnD.classList.add('done');
-        }
+        let btnD = document.getElementById('btn-dibujar'); document.getElementById('badge-dibujo').innerText = poligonoActual.length + " pts";
+        if(calcModo === 'dibujo') { btnD.classList.add('waiting'); } else { if(poligonosGuardados.length > 0 || poligonoActual.length > 2) btnD.classList.add('done'); }
     }
 
-    function render() {
-        ctx.clearRect(0,0, canvas.width, canvas.height);
+    function renderCalc() {
+        ctxCalc.clearRect(0,0, canvasCalc.width, canvasCalc.height);
+        ctxCalc.strokeStyle = '#e74c3c'; ctxCalc.lineWidth = 4;
+        clicsNorte.forEach(y => { ctxCalc.beginPath(); ctxCalc.moveTo(0, y); ctxCalc.lineTo(canvasCalc.width, y); ctxCalc.stroke(); });
+        ctxCalc.strokeStyle = '#3498db'; ctxCalc.lineWidth = 4;
+        clicsEste.forEach(x => { ctxCalc.beginPath(); ctxCalc.moveTo(x, 0); ctxCalc.lineTo(x, canvasCalc.height); ctxCalc.stroke(); });
         
-        ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 4;
-        clicsNorte.forEach(y => { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); });
-        ctx.strokeStyle = '#3498db'; ctx.lineWidth = 4;
-        clicsEste.forEach(x => { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); });
-        
-        // Dibujar polígonos guardados con el texto en el centro
-        poligonosGuardados.forEach((poli, i) => { 
-            // Toma el nombre de la tabla si existe, sino usa un valor por defecto
-            let nombreActual = resultadosGlobales[i] ? resultadosGlobales[i].nombre : `Voladura ${i+1}`;
-            dibujarPoligono(poli, '#8e44ad', nombreActual); 
-        });
-
-        // Dibujar el polígono que está en proceso
+        poligonosGuardados.forEach((poli, i) => { let nombreActual = resultadosGlobales[i] ? resultadosGlobales[i].nombre : `Voladura ${i+1}`; dibujarPoligono(poli, '#8e44ad', nombreActual); });
         if(poligonoActual.length > 0) {
             dibujarPoligono(poligonoActual, '#e67e22', null);
-            poligonoActual.forEach(p => { 
-                ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); 
-                ctx.fillStyle = 'white'; ctx.fill(); 
-                ctx.lineWidth = 1; ctx.strokeStyle = '#000'; ctx.stroke();
-            });
+            poligonoActual.forEach(p => { ctxCalc.beginPath(); ctxCalc.arc(p.x, p.y, 2, 0, Math.PI*2); ctxCalc.fillStyle = 'white'; ctxCalc.fill(); ctxCalc.lineWidth = 1; ctxCalc.strokeStyle = '#000'; ctxCalc.stroke(); });
         }
-
-        // DIBUJAR CÍRCULOS DE RADIO FINAL
         resultadosGlobales.forEach((res) => {
-            ctx.beginPath(); 
-            ctx.arc(res.cx, res.cy, res.radio / res.escala, 0, Math.PI*2);
-            ctx.strokeStyle = '#ff00ff'; ctx.lineWidth = 4; ctx.setLineDash([20,10]); ctx.stroke();
-            ctx.setLineDash([]); 
+            ctxCalc.beginPath(); ctxCalc.arc(res.cx, res.cy, res.radio / res.escala, 0, Math.PI*2);
+            ctxCalc.strokeStyle = '#ff00ff'; ctxCalc.lineWidth = 4; ctxCalc.setLineDash([20,10]); ctxCalc.stroke(); ctxCalc.setLineDash([]); 
         });
     }
 
     function dibujarPoligono(puntos, color, textoCentro) {
         if(puntos.length === 0) return;
-        ctx.beginPath(); ctx.moveTo(puntos[0].x, puntos[0].y);
-        for(let i=1; i<puntos.length; i++) ctx.lineTo(puntos[i].x, puntos[i].y);
-        if(puntos.length>2) { 
-            ctx.closePath(); 
-            ctx.fillStyle = color === '#e67e22' ? 'rgba(230, 126, 34, 0.4)' : 'rgba(142, 68, 173, 0.4)'; 
-            ctx.fill(); 
-        }
-        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+        ctxCalc.beginPath(); ctxCalc.moveTo(puntos[0].x, puntos[0].y);
+        for(let i=1; i<puntos.length; i++) ctxCalc.lineTo(puntos[i].x, puntos[i].y);
+        if(puntos.length>2) { ctxCalc.closePath(); ctxCalc.fillStyle = color === '#e67e22' ? 'rgba(230, 126, 34, 0.4)' : 'rgba(142, 68, 173, 0.4)'; ctxCalc.fill(); }
+        ctxCalc.strokeStyle = color; ctxCalc.lineWidth = 2; ctxCalc.stroke();
 
-        // DIBUJAR TEXTO EN EL CENTRO EXACTO DEL POLÍGONO
         if(textoCentro && puntos.length > 2) {
-            let sumX = 0, sumY = 0;
-            puntos.forEach(p => { sumX += p.x; sumY += p.y; });
-            let centroX = sumX / puntos.length;
-            let centroY = sumY / puntos.length;
-
-            ctx.fillStyle = 'white'; 
-            ctx.font = "bold 26px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.shadowColor = "black";
-            ctx.shadowBlur = 6;
-            ctx.fillText(textoCentro, centroX, centroY);
-            // Reset de estilos de texto
-            ctx.shadowBlur = 0;
-            ctx.textAlign = "left";
-            ctx.textBaseline = "alphabetic";
+            let sumX = 0, sumY = 0; puntos.forEach(p => { sumX += p.x; sumY += p.y; });
+            let centroX = sumX / puntos.length; let centroY = sumY / puntos.length;
+            ctxCalc.fillStyle = 'white'; ctxCalc.font = "bold 26px Arial"; ctxCalc.textAlign = "center"; ctxCalc.textBaseline = "middle";
+            ctxCalc.shadowColor = "black"; ctxCalc.shadowBlur = 6; ctxCalc.fillText(textoCentro, centroX, centroY);
+            ctxCalc.shadowBlur = 0; ctxCalc.textAlign = "left"; ctxCalc.textBaseline = "alphabetic";
         }
     }
 
     function calcularTodo() {
         if(poligonoActual.length > 2) { guardarPoligono(); }
-        if(clicsNorte.length < 2 || clicsEste.length < 2 || poligonosGuardados.length === 0) {
-            return alert("Faltan datos de calibración o no has dibujado ninguna voladura.");
-        }
+        if(clicsNorte.length < 2 || clicsEste.length < 2 || poligonosGuardados.length === 0) { return alert("Faltan datos de calibración o no has dibujado ninguna voladura."); }
 
-        let norteBase = parseFloat(document.getElementById('valNorte').value);
-        let esteBase = parseFloat(document.getElementById('valEste').value);
+        let norteBase = parseFloat(document.getElementById('valNorte').value); let esteBase = parseFloat(document.getElementById('valEste').value);
         let distanciaReal = parseFloat(document.getElementById('valDist').value);
-
-        let m_px_Y = distanciaReal / Math.abs(clicsNorte[1] - clicsNorte[0]);
-        let m_px_X = distanciaReal / Math.abs(clicsEste[1] - clicsEste[0]);
+        let m_px_Y = distanciaReal / Math.abs(clicsNorte[1] - clicsNorte[0]); let m_px_X = distanciaReal / Math.abs(clicsEste[1] - clicsEste[0]);
         let m_px_Promedio = (m_px_Y + m_px_X) / 2;
 
         resultadosGlobales = [];
-
         poligonosGuardados.forEach((poli, index) => {
-            let sumX=0, sumY=0;
-            poli.forEach(p => { sumX+=p.x; sumY+=p.y; });
-            let cx_px = sumX / poli.length;
-            let cy_px = sumY / poli.length;
-
-            let norteFinal = norteBase - ((cy_px - clicsNorte[0]) * m_px_Y); 
-            let esteFinal = esteBase + ((cx_px - clicsEste[0]) * m_px_X);   
+            let sumX=0, sumY=0; poli.forEach(p => { sumX+=p.x; sumY+=p.y; });
+            let cx_px = sumX / poli.length; let cy_px = sumY / poli.length;
+            let norteFinal = norteBase - ((cy_px - clicsNorte[0]) * m_px_Y); let esteFinal = esteBase + ((cx_px - clicsEste[0]) * m_px_X);   
 
             let maxRadio_px = 0;
-            poli.forEach(p => {
-                let d = Math.hypot(p.x - cx_px, p.y - cy_px);
-                if(d > maxRadio_px) maxRadio_px = d;
-            });
+            poli.forEach(p => { let d = Math.hypot(p.x - cx_px, p.y - cy_px); if(d > maxRadio_px) maxRadio_px = d; });
             let radioCalculado = Math.ceil((maxRadio_px * m_px_Promedio) + 500);
 
-            resultadosGlobales.push({
-                nombre: `Voladura ${index + 1}`,
-                norte: norteFinal.toFixed(0),
-                este: esteFinal.toFixed(0),
-                radio: radioCalculado,
-                cx: cx_px,
-                cy: cy_px,
-                escala: m_px_Promedio
-            });
+            resultadosGlobales.push({ nombre: `Voladura ${index + 1}`, norte: norteFinal.toFixed(0), este: esteFinal.toFixed(0), radio: radioCalculado, cx: cx_px, cy: cy_px, escala: m_px_Promedio });
         });
-
-        dibujarTabla();
-        render();
+        dibujarTabla(); renderCalc();
     }
 
     function dibujarTabla() {
-        let box = document.getElementById('output-box');
-        box.style.display = 'block';
-        
-        let html = `
-        <table class="res-table">
-            <tr>
-                <th>Nombre</th>
-                <th>Norte</th>
-                <th>Este</th>
-                <th>Radio (m)</th>
-            </tr>`;
-
+        let box = document.getElementById('output-box'); box.style.display = 'block';
+        let html = `<table class="res-table"><tr><th>Nombre</th><th>Norte</th><th>Este</th><th>Radio (m)</th></tr>`;
         resultadosGlobales.forEach((res, index) => {
-            html += `
-            <tr>
-                <td><input type="text" value="${res.nombre}" onchange="cambiarNombre(${index}, this.value)"></td>
-                <td>${res.norte}</td>
-                <td>${res.este}</td>
-                <td><input type="number" value="${res.radio}" oninput="cambiarRadio(${index}, this.value)"></td>
-            </tr>`;
+            html += `<tr><td><input type="text" value="${res.nombre}" onchange="cambiarNombre(${index}, this.value)"></td><td>${res.norte}</td><td>${res.este}</td><td><input type="number" value="${res.radio}" oninput="cambiarRadio(${index}, this.value)"></td></tr>`;
         });
-        
-        html += `</table>`;
-        box.innerHTML = html;
+        html += `</table>`; box.innerHTML = html;
     }
 
-    function cambiarRadio(index, nuevoValor) {
-        let val = parseFloat(nuevoValor);
-        if(!isNaN(val)) {
-            resultadosGlobales[index].radio = val;
-            render(); 
-        }
-    }
+    function cambiarRadio(index, nuevoValor) { let val = parseFloat(nuevoValor); if(!isNaN(val)) { resultadosGlobales[index].radio = val; renderCalc(); } }
+    function cambiarNombre(index, nuevoTexto) { resultadosGlobales[index].nombre = nuevoTexto; renderCalc(); }
 
-    function cambiarNombre(index, nuevoTexto) {
-        resultadosGlobales[index].nombre = nuevoTexto;
-        render(); 
+    function reiniciarCalculadora() {
+        calcModo = null; clicsNorte = []; clicsEste = []; poligonoActual = []; poligonosGuardados = []; resultadosGlobales = [];
+        imgCalc.src = ""; document.getElementById('fileInput').value = ""; document.getElementById('output-box').style.display = "none";
+        document.getElementById('valNorte').value = ""; document.getElementById('valEste').value = ""; document.getElementById('valDist').value = "";
+        actualizarUICalc(); renderCalc();
     }
 </script>
 
